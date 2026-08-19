@@ -1,0 +1,13 @@
+﻿{
+  "name": "the-journey-v2",
+  "version": "2.0.0",
+  "description": "The Journey - Football Manager Career Vault with Personal Cloud Sync and Tactical Analytics",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx serve . -p 3000",
+    "dev": "npx serve . -p 3000"
+  },
+  "keywords": ["football-manager", "fm24", "fm25", "career-vault", "tactics", "firebase"],
+  "author": "Ruffy Prasetya",
+  "license": "MIT"
+}

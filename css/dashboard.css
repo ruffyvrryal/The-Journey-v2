@@ -1,0 +1,452 @@
+﻿/* ==========================================================================
+   DASHBOARD GRID & CARDS (Home Page Exact Reference Replica)
+   ========================================================================== */
+
+.dashboard-layout {
+  display: grid;
+  grid-template-columns: 1.1fr 1.3fr 1.2fr;
+  grid-gap: 16px;
+  width: 100%;
+}
+
+.dash-card {
+  background-color: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: 16px 18px;
+  color: var(--text-white);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+}
+
+/* --------------------------------------------------------------------------
+   CARD 1: CLUB OVERVIEW (Man United)
+   -------------------------------------------------------------------------- */
+.card-club-overview {
+  justify-content: space-between;
+}
+
+.club-header-info {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.club-crest-container {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #e11d48 0%, #881337 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
+  border: 2px solid #ffd700;
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.club-crest-img {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+}
+
+.club-name-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.club-main-title {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--text-white);
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.club-sub-status {
+  font-size: 0.8rem;
+  color: #7dd3fc;
+  margin-top: 2px;
+}
+
+.card-divider {
+  height: 1px;
+  background-color: rgba(255, 255, 255, 0.1);
+  margin: 8px 0 14px;
+}
+
+.club-stats-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.club-form-col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.col-label {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  font-weight: 500;
+}
+
+.form-bar-indicators {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 26px;
+}
+
+.form-bar {
+  width: 7px;
+  border-radius: 2px;
+  transition: all 0.2s ease;
+}
+
+.form-bar.win {
+  background-color: #22c55e;
+  height: 24px;
+}
+
+.form-bar.draw {
+  background-color: #94a3b8;
+  height: 16px;
+}
+
+.form-bar.loss {
+  background-color: #ef4444;
+  height: 10px;
+}
+
+.performance-pill-badge {
+  background-color: #2c334e;
+  border: 1px solid #3e486e;
+  color: #f1f5f9;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.performance-pill-badge i {
+  color: #fbbf24;
+}
+
+/* --------------------------------------------------------------------------
+   CARD 2: RESULTS (Gameweek 19)
+   -------------------------------------------------------------------------- */
+.card-results {
+  justify-content: flex-start;
+}
+
+.card-top-title-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.card-title-main {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--text-white);
+}
+
+.card-subtitle-italic {
+  font-size: 0.8rem;
+  font-style: italic;
+  color: #94a3b8;
+  margin-left: 8px;
+}
+
+.gameweek-stamp {
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.results-match-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.result-row-box {
+  display: grid;
+  grid-template-columns: 1fr 54px 1fr;
+  align-items: center;
+  gap: 8px;
+}
+
+.result-team-pill {
+  background-color: #0d123d;
+  border: 1px solid #202969;
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-align: center;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.result-score-pill {
+  background-color: #0d123d;
+  border: 1px solid #202969;
+  border-radius: 6px;
+  padding: 7px 4px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  text-align: center;
+  color: #ffffff;
+  letter-spacing: 0.05em;
+}
+
+/* --------------------------------------------------------------------------
+   CARD 3: TABLES (Top 5 & See More)
+   -------------------------------------------------------------------------- */
+.card-tables {
+  grid-row: span 2;
+  justify-content: space-between;
+}
+
+.table-league-tag {
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.mini-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 10px 0;
+  font-size: 0.8rem;
+}
+
+.mini-table th {
+  color: #64748b;
+  font-weight: 600;
+  text-align: left;
+  padding: 4px 6px;
+  font-size: 0.72rem;
+}
+
+.mini-table th:first-child { width: 32px; }
+.mini-table th:nth-child(3), .mini-table th:nth-child(4) { text-align: center; width: 36px; }
+
+.mini-table td {
+  padding: 6px;
+  color: #cbd5e1;
+  font-weight: 500;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.mini-table td.pos {
+  color: #94a3b8;
+}
+
+.mini-table td.team-name {
+  color: #ffffff;
+  font-weight: 600;
+  max-width: 130px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mini-table td.pld, .mini-table td.pts {
+  text-align: center;
+}
+
+.mini-table td.pts {
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.mini-table tr.highlight-team td {
+  color: var(--brand-yellow);
+  font-weight: 700;
+}
+
+.btn-see-more {
+  background-color: #ff1c44;
+  color: var(--text-white);
+  border: none;
+  font-family: var(--font-main);
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  align-self: flex-end;
+  margin-top: 8px;
+  transition: all 0.2s ease;
+  box-shadow: 0 3px 8px rgba(255, 28, 68, 0.35);
+}
+
+.btn-see-more:hover {
+  background-color: #e01135;
+  transform: translateX(2px);
+}
+
+/* --------------------------------------------------------------------------
+   BOTTOM ROW: STAT COUNTER CARDS (WIN, DRAW, LOSE)
+   -------------------------------------------------------------------------- */
+.bottom-stats-cluster {
+  grid-column: span 2;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+}
+
+.stat-box-card {
+  background-color: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: 16px 12px 20px;
+  color: var(--text-white);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.stat-box-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.stat-box-title {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-white);
+  margin-bottom: 6px;
+}
+
+.stat-underline {
+  width: 70%;
+  height: 2px;
+  background-color: rgba(255, 255, 255, 0.2);
+  margin-bottom: 8px;
+}
+
+.stat-box-num {
+  font-family: var(--font-display);
+  font-size: 3.2rem;
+  font-weight: 900;
+  line-height: 1;
+  color: var(--text-white);
+  margin-top: 4px;
+}
+
+/* --------------------------------------------------------------------------
+   BOTTOM RIGHT: BEST PLAYERS CARD
+   -------------------------------------------------------------------------- */
+.card-best-players {
+  background-color: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: 14px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.best-players-header {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-white);
+}
+
+.best-player-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+  border-radius: 4px;
+  overflow: hidden;
+  height: 26px;
+  background-color: #0b0f38;
+}
+
+.best-player-bar-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, #1d1754 0%, #301f78 100%);
+  border-radius: 4px;
+  z-index: 1;
+}
+
+.best-player-name {
+  position: relative;
+  z-index: 2;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #e2e8f0;
+  padding-left: 8px;
+}
+
+.best-player-rating-badge {
+  position: relative;
+  z-index: 2;
+  background-color: #00c853;
+  color: #000000;
+  font-size: 0.75rem;
+  font-weight: 900;
+  padding: 1px 6px;
+  border-radius: 3px;
+  margin-right: 4px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+  .dashboard-layout {
+    grid-template-columns: 1fr 1fr;
+  }
+  .card-tables {
+    grid-column: span 2;
+    grid-row: auto;
+  }
+  .bottom-stats-cluster {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 680px) {
+  .dashboard-layout {
+    grid-template-columns: 1fr;
+  }
+  .card-tables, .bottom-stats-cluster {
+    grid-column: span 1;
+  }
+  .bottom-stats-cluster {
+    grid-template-columns: 1fr;
+  }
+  .stat-box-num {
+    font-size: 2.4rem;
+  }
+}
