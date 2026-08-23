@@ -522,30 +522,165 @@ class StateStore {
     this.notify();
   }
 
+  recalculateSeasonStats() {
+    const season = this.getActiveSeasonData();
+    const results = season.results || [];
+    let wins = 0, draws = 0, losses = 0, gf = 0, ga = 0;
+    const formArr = [];
+
+    const club = (this.clubName || 'Man Utd').toLowerCase();
+
+    results.forEach(m => {
+      const homeNorm = (m.home || '').toLowerCase();
+      const awayNorm = (m.away || '').toLowerCase();
+      const isHome = homeNorm.includes('man utd') || homeNorm.includes('manchester united') || homeNorm.includes(club);
+      const isAway = awayNorm.includes('man utd') || awayNorm.includes('manchester united') || awayNorm.includes(club);
+
+      if (isHome || isAway) {
+        const myScore = isHome ? Number(m.homeScore) : Number(m.awayScore);
+        const oppScore = isHome ? Number(m.awayScore) : Number(m.homeScore);
+        gf += myScore;
+        ga += oppScore;
+
+        if (myScore > oppScore) {
+          wins++;
+          formArr.push('W');
+        } else if (myScore === oppScore) {
+          draws++;
+          formArr.push('D');
+        } else {
+          losses++;
+          formArr.push('L');
+        }
+      }
+    });
+
+    season.record = {
+      wins,
+      draws,
+      losses,
+      goalsFor: gf,
+      goalsAgainst: ga,
+      points: (wins * 3) + (draws * 1)
+    };
+    season.recentForm = formArr.length > 0 ? formArr.slice(0, 5) : ['W', 'W', 'D', 'W'];
+
+    // Update active manager vault card percentages
+    const totalMatches = wins + draws + losses;
+    if (totalMatches > 0) {
+      const winRate = Math.round((wins / totalMatches) * 100);
+      const drawRate = Math.round((draws / totalMatches) * 100);
+      const loseRate = Math.max(0, 100 - winRate - drawRate);
+
+      const activeVault = this.vaults.find(v => v.id === this.activeVaultId);
+      if (activeVault) {
+        activeVault.winRate = `${winRate}%`;
+        activeVault.drawRate = `${drawRate}%`;
+        activeVault.loseRate = `${loseRate}%`;
+      }
+    }
+
+    // Recalculate standings row for user team
+    if (Array.isArray(season.standings)) {
+      const userRow = season.standings.find(s => s.isUser || s.team.toLowerCase().includes('manchester united') || s.team.toLowerCase().includes(club));
+      if (userRow) {
+        userRow.pld = totalMatches > 0 ? totalMatches : userRow.pld;
+        userRow.won = wins;
+        userRow.drawn = draws;
+        userRow.lost = losses;
+        userRow.gf = gf > 0 ? gf : userRow.gf;
+        userRow.ga = ga > 0 ? ga : userRow.ga;
+        userRow.gd = userRow.gf - userRow.ga;
+        userRow.pts = (wins * 3) + (draws * 1);
+      }
+    }
+  }
+
   addMatchResult(match) {
     const season = this.getActiveSeasonData();
-    season.results.unshift({
-      id: Date.now(),
-      ...match
-    });
-    // Auto update season record
-    if (match.home === 'Man Utd' || match.away === 'Man Utd') {
-      const isHome = match.home === 'Man Utd';
-      const myScore = isHome ? match.homeScore : match.awayScore;
-      const oppScore = isHome ? match.awayScore : match.homeScore;
-      
-      if (myScore > oppScore) {
-        season.record.wins++;
-        season.recentForm.unshift('W');
-      } else if (myScore === oppScore) {
-        season.record.draws++;
-        season.recentForm.unshift('D');
-      } else {
-        season.record.losses++;
-        season.recentForm.unshift('L');
+    const newMatch = {
+      id: match.id || Date.now(),
+      gameweek: match.gameweek || (season.results.length + 1),
+      date: match.date || new Date().toLocaleDateString('en-GB'),
+      home: match.home || this.clubName || 'Man Utd',
+      away: match.away || 'Opponent',
+      homeScore: Number(match.homeScore) || 0,
+      awayScore: Number(match.awayScore) || 0,
+      competition: match.competition || this.leagueName || 'Premier League',
+      status: 'FT',
+      lineup: match.lineup || [],
+      goalscorers: match.goalscorers || [],
+      assisters: match.assisters || []
+    };
+
+    season.results.unshift(newMatch);
+
+    // Apply Player Stats increments to Squad
+    if (Array.isArray(season.squad)) {
+      // 1. Appearances
+      if (Array.isArray(newMatch.lineup) && newMatch.lineup.length > 0) {
+        const lineupSet = new Set(newMatch.lineup.map(Number));
+        season.squad.forEach(p => {
+          if (lineupSet.has(Number(p.id))) {
+            p.apps = (Number(p.apps) || 0) + 1;
+          }
+        });
       }
-      season.recentForm = season.recentForm.slice(0, 4);
+
+      // 2. Goalscorers
+      if (Array.isArray(newMatch.goalscorers)) {
+        newMatch.goalscorers.forEach(g => {
+          const p = season.squad.find(sq => sq.id === Number(g.playerId));
+          if (p) {
+            p.goals = (Number(p.goals) || 0) + (Number(g.count) || 1);
+          }
+        });
+      }
+
+      // 3. Assisters
+      if (Array.isArray(newMatch.assisters)) {
+        newMatch.assisters.forEach(a => {
+          const p = season.squad.find(sq => sq.id === Number(a.playerId));
+          if (p) {
+            p.assists = (Number(p.assists) || 0) + (Number(a.count) || 1);
+          }
+        });
+      }
+
+      // 4. Clean Sheets
+      const isHomeUser = newMatch.home.toLowerCase().includes('man utd') || newMatch.home.toLowerCase().includes((this.clubName || '').toLowerCase());
+      const conceded = isHomeUser ? newMatch.awayScore : newMatch.homeScore;
+      if (conceded === 0 && Array.isArray(newMatch.lineup)) {
+        const lineupSet = new Set(newMatch.lineup.map(Number));
+        season.squad.forEach(p => {
+          if (lineupSet.has(Number(p.id)) && (p.pos === 'GK' || p.pos === 'DC' || p.pos === 'DL' || p.pos === 'DR')) {
+            p.cleanSheets = (Number(p.cleanSheets) || 0) + 1;
+          }
+        });
+      }
     }
+
+    this.recalculateSeasonStats();
+    this.notify();
+  }
+
+  updateMatchResult(matchId, updatedData) {
+    const season = this.getActiveSeasonData();
+    const idx = season.results.findIndex(m => m.id === matchId);
+    if (idx !== -1) {
+      season.results[idx] = {
+        ...season.results[idx],
+        ...updatedData
+      };
+      this.recalculateSeasonStats();
+      this.notify();
+    }
+  }
+
+  deleteMatchResult(matchId) {
+    const season = this.getActiveSeasonData();
+    season.results = season.results.filter(m => m.id !== matchId);
+    this.recalculateSeasonStats();
     this.notify();
   }
 

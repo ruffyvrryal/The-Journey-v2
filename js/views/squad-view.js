@@ -281,12 +281,18 @@ export function renderSquadView(container) {
   // Bind Global Add Player Button
   const btnGlobalAdd = container.querySelector('#btn-add-player-global');
   if (btnGlobalAdd) {
-    btnGlobalAdd.onclick = () => openAddPlayerModal('MC');
+    btnGlobalAdd.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      openAddPlayerModal('MC');
+    };
   }
 
   // Bind Position Group Add Player Buttons
   container.querySelectorAll('.btn-group-add-player').forEach(btn => {
-    btn.onclick = () => {
+    btn.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
       const defaultPos = btn.getAttribute('data-pos') || 'MC';
       openAddPlayerModal(defaultPos);
     };
