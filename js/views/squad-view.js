@@ -30,16 +30,23 @@ export function getPositionBadgeClass(pos) {
   }
 }
 
-// Helper to extract shirt number robustly
-export function getPlayerShirtNumber(p) {
-  if (!p) return null;
+// Helper to extract shirt number robustly and auto-assign if missing
+export function getPlayerShirtNumber(p, fallbackIndex = 1, pos = 'MC') {
+  if (!p) return 1;
   const candidates = [p.num, p.number, p.shirtNumber];
   for (const c of candidates) {
     if (c !== undefined && c !== null && c !== '' && !isNaN(Number(c))) {
-      return Number(c);
+      const parsed = Number(c);
+      if (parsed > 0) return parsed;
     }
   }
-  return null;
+  // If player has no number, auto-assign based on position and ID
+  const isGk = getPlayerCategory(pos || p.pos) === 'GK';
+  const autoNum = isGk ? 1 : ((Number(p.id) || 10) % 90 + 2 || fallbackIndex + 1);
+  p.num = autoNum;
+  p.number = autoNum;
+  p.shirtNumber = autoNum;
+  return autoNum;
 }
 
 export function renderSquadView(container) {
@@ -51,13 +58,15 @@ export function renderSquadView(container) {
 
   const allPlayers = store.squad || [];
 
-  // Group players by position, then sort by shirt number (unassigned → end)
+  // Auto-backfill any missing shirt numbers immediately
+  allPlayers.forEach((p, idx) => {
+    getPlayerShirtNumber(p, idx + 1, p.pos);
+  });
+
+  // Group players by position, then sort by shirt number
   const sortByShirt = (arr) => [...arr].sort((a, b) => {
     const na = getPlayerShirtNumber(a);
     const nb = getPlayerShirtNumber(b);
-    if (na === null && nb === null) return 0;
-    if (na === null) return 1;
-    if (nb === null) return -1;
     return na - nb;
   });
 
@@ -73,17 +82,17 @@ export function renderSquadView(container) {
     : '24.0';
 
   // Helper to render an individual player row
-  const renderPlayerRow = (p) => {
+  const renderPlayerRow = (p, idx) => {
     const posClass = getPositionBadgeClass(p.pos);
     const fitVal = Number(p.fit) || 95;
     const fitColor = fitVal >= 95 ? '#22c55e' : fitVal >= 85 ? '#eab308' : '#ef4444';
     const ratingVal = typeof p.rat === 'number' ? p.rat.toFixed(1) : Number(p.rat || 7.5).toFixed(1);
-    const shirtNum = getPlayerShirtNumber(p);
+    const shirtNum = getPlayerShirtNumber(p, idx + 1, p.pos);
 
     return `
       <tr class="squad-player-row clickable-player-row" data-id="${p.id}" title="Click to view & edit detailed profile and upload photo for ${p.name}">
         <td class="shirt-num-cell">
-          ${shirtNum !== null ? `<span class="shirt-number-badge">${shirtNum}</span>` : `<span class="shirt-number-badge shirt-unassigned">—</span>`}
+          <span class="shirt-number-badge" data-id="${p.id}" title="Shirt #${shirtNum} (Click to edit)">${shirtNum}</span>
         </td>
         <td class="player-name-cell">
           <div class="player-avatar-circle ${p.photo ? 'has-custom-photo' : ''}">
@@ -296,11 +305,31 @@ export function renderSquadView(container) {
     };
   });
 
+  // Bind Shirt Number Badge Quick Edit
+  container.querySelectorAll('.shirt-number-badge').forEach(badge => {
+    badge.onclick = (e) => {
+      e.stopPropagation();
+      const id = Number(badge.getAttribute('data-id'));
+      const player = store.squad.find(p => p.id === id);
+      if (player) {
+        const current = getPlayerShirtNumber(player);
+        const newNum = prompt(`Set shirt number for ${player.name}:`, current || '');
+        if (newNum !== null && newNum.trim() !== '') {
+          const parsed = Number(newNum);
+          if (!isNaN(parsed) && parsed > 0) {
+            store.updatePlayer(player.id, { num: parsed, number: parsed, shirtNumber: parsed });
+            showToast(`${player.name} assigned shirt #${parsed}`);
+          }
+        }
+      }
+    };
+  });
+
   // Bind Clickable Player Rows to Open Detailed Player View
   container.querySelectorAll('.clickable-player-row').forEach(row => {
     row.onclick = (e) => {
-      // Ignore if clicking on delete button
-      if (e.target.closest('.btn-del-player')) return;
+      // Ignore if clicking on delete button or shirt badge
+      if (e.target.closest('.btn-del-player') || e.target.closest('.shirt-number-badge')) return;
       const id = Number(row.getAttribute('data-id'));
       if (id) {
         store.selectPlayer(id);

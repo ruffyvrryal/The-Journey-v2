@@ -1234,129 +1234,926 @@
 
 
 /* ==========================================================================
-   TACTICS & INTERACTIVE PITCH
+   AUTHENTIC FOOTBALL MANAGER MATCH DAY TACTICS PLANNER
    ========================================================================== */
-.tactics-layout {
-  display: grid;
-  grid-template-columns: 1.5fr 1fr;
+
+.fm-tactics-page {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Top Breadcrumb & Metadata */
+.tactics-top-meta-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tactics-breadcrumb {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tactics-breadcrumb .breadcrumb-arrow {
+  font-size: 0.65rem;
+  color: #64748b;
+}
+
+.tactics-breadcrumb strong {
+  color: #e2e8f0;
+  font-weight: 700;
+}
+
+/* Main Tactical Controls Header Bar (Matches FM Dark Header) */
+.tactics-control-header {
+  background: linear-gradient(180deg, #090e2e 0%, #05081c 100%);
+  border: 1px solid #1e285a;
+  border-radius: var(--radius-md);
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.tactics-ctrl-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tactic-dropdown-pill {
+  background-color: #0d1544;
+  border: 1px solid #233177;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  padding: 2px 6px;
+  transition: all 0.15s ease;
+}
+
+.tactic-dropdown-pill:hover {
+  border-color: #38bdf8;
+  background-color: #141f5e;
+}
+
+.main-formation-pill {
+  background: linear-gradient(135deg, #10343a 0%, #0d2334 100%);
+  border-color: #14b8a6;
+}
+
+.pill-prefix-num {
+  background-color: #0f766e;
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 3px;
+  margin-right: 4px;
+}
+
+.pill-select {
+  background: transparent;
+  border: none;
+  color: #f1f5f9;
+  font-family: var(--font-main);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  outline: none;
+  padding: 4px 2px;
+}
+
+.pill-select option {
+  background-color: #0b1130;
+  color: #ffffff;
+}
+
+.btn-tactic-add {
+  background-color: #102048;
+  color: #38bdf8;
+  border: 1px solid #233772;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-tactic-add:hover {
+  background-color: #1d3278;
+  color: #ffffff;
+  border-color: #38bdf8;
+}
+
+.tactics-ctrl-right {
+  display: flex;
+  align-items: center;
   gap: 16px;
 }
 
-.pitch-container {
-  background: radial-gradient(circle at center, #15803d 0%, #14532d 100%);
-  border: 2px solid #86efac;
-  border-radius: var(--radius-lg);
-  min-height: 480px;
-  position: relative;
-  overflow: hidden;
-  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.4);
+/* Familiarity & Intensity Meters */
+.tactics-meter-block {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  padding: 16px 20px;
+  gap: 3px;
 }
 
-.pitch-line-center {
+.meter-label {
+  font-size: 0.68rem;
+  color: #94a3b8;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.meter-bar-container {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.meter-bar-segment {
+  width: 12px;
+  height: 5px;
+  border-radius: 1px;
+  background-color: #1e293b;
+}
+
+.meter-bar-segment.seg-green.active {
+  background-color: #22c55e;
+  box-shadow: 0 0 4px rgba(34, 197, 94, 0.4);
+}
+
+.meter-bar-segment.seg-orange.active {
+  background-color: #f59e0b;
+  box-shadow: 0 0 4px rgba(245, 158, 11, 0.4);
+}
+
+/* Sub-Navigation Tabs Row */
+.tactics-sub-nav-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #060b24;
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.sub-nav-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tactics-tab-btn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.tactics-tab-btn:hover {
+  color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.tactics-tab-btn.active {
+  background-color: #0e1c4e;
+  color: #38bdf8;
+  border: 1px solid #233772;
+}
+
+.sub-nav-match-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.next-opponent-tag {
+  font-size: 0.75rem;
+  color: #cbd5e1;
+  background-color: #0d153e;
+  border: 1px solid #212c66;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-subnav-action {
+  background-color: #0f1842;
+  border: 1px solid #243272;
+  color: #cbd5e1;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+}
+
+.btn-subnav-action:hover {
+  background-color: #192766;
+  color: #ffffff;
+  border-color: #38bdf8;
+}
+
+.btn-quick-pick {
+  background: linear-gradient(135deg, #104036 0%, #0d2b27 100%);
+  border-color: #10b981;
+  color: #6ee7b7;
+}
+
+.btn-quick-pick:hover {
+  background: #0f4c3d;
+  color: #ffffff;
+}
+
+/* ==========================================================================
+   TACTICS WORKSPACE SPLIT (Pitch Left + Table Right)
+   ========================================================================== */
+.tactics-workspace-grid {
+  display: grid;
+  grid-template-columns: 420px 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+@media (max-width: 1050px) {
+  .tactics-workspace-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ==========================================================================
+   LEFT PANEL: AUTHENTIC FM GRASS PITCH
+   ========================================================================== */
+.tactics-pitch-wrapper {
+  background-color: #070c28;
+  border: 1px solid #1a255a;
+  border-radius: var(--radius-md);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pitch-filter-tabs {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pitch-tab-pills {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background-color: #05081a;
+  padding: 2px;
+  border-radius: 6px;
+  border: 1px solid #18224e;
+}
+
+.pitch-pill-btn {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pitch-pill-btn:hover {
+  color: #ffffff;
+}
+
+.pitch-pill-btn.active {
+  background-color: #111f52;
+  color: #38bdf8;
+}
+
+.pitch-collapse-btn {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+/* The FM Grass Pitch Surface */
+.fm-grass-pitch {
+  width: 100%;
+  height: 520px;
+  background: 
+    /* Grass Stripe Patterns */
+    repeating-linear-gradient(
+      180deg,
+      rgba(0, 0, 0, 0.05) 0px,
+      rgba(0, 0, 0, 0.05) 40px,
+      transparent 40px,
+      transparent 80px
+    ),
+    /* Deep Rich Stadium Grass Texture */
+    radial-gradient(ellipse at 50% 50%, #15733d 0%, #0d542a 65%, #083c1d 100%);
+  border: 2px solid #34d399;
+  border-radius: 10px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.6), 0 4px 15px rgba(0, 0, 0, 0.4);
+}
+
+/* Pitch Markings Overlay */
+.pitch-overlay-lines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.p-line-box.top-box {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 170px;
+  height: 65px;
+  border: 1.5px solid rgba(255, 255, 255, 0.45);
+  border-top: none;
+}
+
+.p-line-arc.top-arc {
+  position: absolute;
+  top: 65px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 25px;
+  border: 1.5px solid rgba(255, 255, 255, 0.45);
+  border-top: none;
+  border-radius: 0 0 50% 50%;
+}
+
+.p-line-goal.top-goal {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 70px;
+  height: 22px;
+  border: 1.5px solid rgba(255, 255, 255, 0.45);
+  border-top: none;
+}
+
+.p-line-halfway {
   position: absolute;
   top: 50%;
   left: 0;
   right: 0;
-  height: 2px;
-  background-color: rgba(255, 255, 255, 0.4);
+  height: 1.5px;
+  background-color: rgba(255, 255, 255, 0.45);
 }
 
-.pitch-center-circle {
+.p-line-circle {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 90px;
-  height: 90px;
-  border: 2px solid rgba(255, 255, 255, 0.4);
+  width: 85px;
+  height: 85px;
+  border: 1.5px solid rgba(255, 255, 255, 0.45);
   border-radius: 50%;
   transform: translate(-50%, -50%);
 }
 
-.pitch-penalty-top {
+.p-line-spot {
   position: absolute;
-  top: 0;
+  top: 50%;
   left: 50%;
-  width: 160px;
-  height: 60px;
-  border: 2px solid rgba(255, 255, 255, 0.4);
-  border-top: none;
-  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  background-color: rgba(255, 255, 255, 0.7);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
 }
 
-.pitch-penalty-bottom {
+.p-line-box.bottom-box {
   position: absolute;
   bottom: 0;
   left: 50%;
-  width: 160px;
-  height: 60px;
-  border: 2px solid rgba(255, 255, 255, 0.4);
-  border-bottom: none;
   transform: translateX(-50%);
+  width: 170px;
+  height: 65px;
+  border: 1.5px solid rgba(255, 255, 255, 0.45);
+  border-bottom: none;
 }
 
-.pitch-formation-grid {
-  position: relative;
-  z-index: 10;
-  height: 100%;
+.p-line-arc.bottom-arc {
+  position: absolute;
+  bottom: 65px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 25px;
+  border: 1.5px solid rgba(255, 255, 255, 0.45);
+  border-bottom: none;
+  border-radius: 50% 50% 0 0;
+}
+
+.p-line-goal.bottom-goal {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 70px;
+  height: 22px;
+  border: 1.5px solid rgba(255, 255, 255, 0.45);
+  border-bottom: none;
+}
+
+/* Pitch Interactive Player Tokens */
+.pitch-nodes-layer {
+  position: absolute;
+  inset: 0;
+}
+
+.fm-pitch-token {
+  position: absolute;
+  transform: translate(-50%, -50%);
   display: flex;
   flex-direction: column;
-  justify-content: space-around;
-  padding: 10px 0;
-}
-
-.pitch-row {
-  display: flex;
-  justify-content: space-around;
   align-items: center;
-}
-
-.pitch-player-node {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
   cursor: pointer;
-  transition: transform 0.15s ease;
+  z-index: 20;
+  transition: transform 0.15s ease, z-index 0.15s ease;
 }
 
-.pitch-player-node:hover {
-  transform: scale(1.1);
+.fm-pitch-token:hover {
+  transform: translate(-50%, -50%) scale(1.15);
+  z-index: 30;
 }
 
-.pitch-player-kit {
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  background: #dc2626;
-  border: 2px solid #ffffff;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+/* Dual Role Pills (IP and OOP) */
+.token-roles-strip {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-bottom: 2px;
+}
+
+.role-badge {
+  font-size: 0.6rem;
+  font-weight: 800;
+  padding: 1px 4px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  color: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  letter-spacing: 0.02em;
+}
+
+/* Role Badge Color Palette (Matches FM 24/25) */
+.role-badge.ip-teal { background-color: #0d9488; }
+.role-badge.ip-cyan { background-color: #0284c7; }
+.role-badge.ip-green { background-color: #16a34a; }
+.role-badge.ip-blue { background-color: #2563eb; }
+.role-badge.ip-magenta { background-color: #c026d3; }
+.role-badge.ip-fuchsia { background-color: #db2777; }
+.role-badge.ip-slate { background-color: #475569; }
+
+.role-badge.oop-purple { background-color: #7e22ce; }
+.role-badge.oop-teal { background-color: #0f766e; }
+.role-badge.oop-blue { background-color: #1d4ed8; }
+.role-badge.oop-green { background-color: #15803d; }
+.role-badge.oop-magenta { background-color: #a21caf; }
+
+/* Stars Rating */
+.token-ability-stars {
+  font-size: 0.55rem;
+  color: #fbbf24;
+  display: flex;
+  gap: 1px;
+  margin-bottom: 2px;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.8));
+}
+
+/* 3D Jersey Kit Icon with Shirt Number */
+.token-kit-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 800;
-  font-size: 0.85rem;
-  color: white;
+  font-size: 0.72rem;
+  font-weight: 900;
+  border: 1.5px solid #ffffff;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.7), inset 0 1px 1px rgba(255, 255, 255, 0.4);
 }
 
-.pitch-player-name {
-  background-color: rgba(0, 0, 0, 0.75);
-  color: white;
-  font-size: 0.7rem;
-  font-weight: 700;
-  padding: 1px 6px;
+.kit-outfield {
+  background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+  color: #ffffff;
+}
+
+.kit-gk {
+  background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+  color: #ffffff;
+}
+
+.kit-shirt-num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Player Nameplate */
+.token-player-name-plate {
+  background: rgba(8, 12, 36, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 3px;
+  padding: 1px 5px;
+  margin-top: 2px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+}
+
+.token-p-name {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #ffffff;
   white-space: nowrap;
 }
 
-.pitch-player-role {
-  color: #fde047;
-  font-size: 0.65rem;
-  font-weight: 600;
+/* Bottom Substitutes Tray */
+.tactics-substitutes-tray {
+  background-color: #04081c;
+  border: 1px solid #18224e;
+  border-radius: 8px;
+  padding: 6px 10px;
 }
+
+.sub-tray-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.sub-tray-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.sub-count-indicator {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #34d399;
+}
+
+.sub-dots {
+  letter-spacing: 1px;
+}
+
+.sub-bench-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+}
+
+.sub-bench-card {
+  background-color: #0a1030;
+  border: 1px solid #1a275e;
+  border-radius: 4px;
+  padding: 3px 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.68rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sub-bench-card:hover {
+  background-color: #131e54;
+  border-color: #38bdf8;
+}
+
+.sub-code {
+  color: #38bdf8;
+  font-weight: 800;
+}
+
+.sub-num {
+  color: #fbbf24;
+  font-weight: 800;
+}
+
+.sub-name {
+  color: #e2e8f0;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.sub-pos {
+  color: #94a3b8;
+  font-size: 0.62rem;
+}
+
+/* ==========================================================================
+   RIGHT PANEL: AUTHENTIC FM TACTICAL SELECTION TABLE
+   ========================================================================== */
+.tactics-table-panel {
+  background-color: #070c28;
+  border: 1px solid #1a255a;
+  border-radius: var(--radius-md);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 580px;
+}
+
+.tactics-table-top-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.t-select-pill {
+  background-color: #0c1544;
+  border: 1px solid #233177;
+  color: #cbd5e1;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tactics-table-scroll-wrapper {
+  overflow-x: auto;
+  flex: 1;
+}
+
+.fm-tactics-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+  color: #e2e8f0;
+}
+
+.fm-tactics-data-table th {
+  background-color: #091038;
+  color: #94a3b8;
+  font-weight: 700;
+  padding: 6px 8px;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  border-bottom: 1px solid #1e285a;
+  white-space: nowrap;
+}
+
+.fm-tactics-data-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.tactics-table-row:hover td {
+  background-color: rgba(56, 189, 248, 0.08);
+}
+
+/* Picked Slot Badges */
+.pkd-slot-badge {
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 3px;
+  display: inline-block;
+  text-align: center;
+  min-width: 38px;
+}
+
+.pkd-gk { background-color: #0d9488; color: #ffffff; }
+.pkd-field { background-color: #1e293b; color: #94a3b8; border: 1px solid #334155; }
+.pkd-sub { background-color: #0f172a; color: #64748b; }
+
+/* Role Select Box */
+.role-select-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: #ffffff;
+  cursor: pointer;
+  min-width: 60px;
+}
+
+.role-caret {
+  font-size: 0.55rem;
+  opacity: 0.8;
+}
+
+.tactics-stars-row {
+  display: flex;
+  justify-content: center;
+  gap: 2px;
+  font-size: 0.65rem;
+  color: #fbbf24;
+}
+
+.pi-icon-pill {
+  color: #64748b;
+  font-size: 0.7rem;
+  cursor: pointer;
+}
+
+.pi-icon-pill:hover {
+  color: #38bdf8;
+}
+
+/* Player Cell Wrap */
+.t-player-cell-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.t-jersey-mini {
+  width: 20px;
+  height: 20px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  font-weight: 900;
+  border: 1px solid #ffffff;
+  flex-shrink: 0;
+}
+
+.j-outfield { background: #ef4444; color: white; }
+.j-gk { background: #0284c7; color: white; }
+
+.t-player-name-link {
+  font-weight: 700;
+  color: #f1f5f9;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: color 0.15s ease;
+}
+
+.t-player-name-link:hover {
+  color: #38bdf8;
+  text-decoration: underline;
+}
+
+.t-pos-txt {
+  color: #94a3b8;
+  font-size: 0.72rem;
+}
+
+/* Information Status Badges */
+.inf-badge {
+  font-size: 0.62rem;
+  font-weight: 800;
+  padding: 1px 4px;
+  border-radius: 2px;
+  text-transform: uppercase;
+}
+
+.inf-pr { background-color: #22c55e; color: #052e16; }
+.inf-yel { background-color: #eab308; color: #422006; }
+.inf-rst { background-color: #f97316; color: #431407; }
+.inf-inj { background-color: #ef4444; color: #ffffff; }
+.inf-esc { background-color: #64748b; color: #ffffff; }
+
+/* Familiarity mini bar */
+.t-fam-bar-wrap {
+  width: 44px;
+  height: 6px;
+  background-color: #1e293b;
+  border-radius: 2px;
+  overflow: hidden;
+  margin: 0 auto;
+}
+
+.t-fam-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #10b981 0%, #34d399 100%);
+}
+
+.t-con-heart {
+  color: #22c55e;
+  font-size: 0.75rem;
+}
+
+.t-shp-check {
+  color: #22c55e;
+  background-color: rgba(34, 197, 94, 0.15);
+  padding: 1px 3px;
+  border-radius: 2px;
+  font-size: 0.65rem;
+}
+
+.t-mor-icon {
+  color: #22c55e;
+  font-size: 0.72rem;
+}
+
+.rating-pill-fm {
+  background-color: #10b981;
+  color: #064e3b;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.75rem;
+}
+
+/* Table Footer Bar */
+.tactics-table-footer-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 4px 2px;
+  border-top: 1px solid #1a255a;
+}
+
+.footer-rule-tag {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.footer-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-footer-pill {
+  background-color: #0c1544;
+  border: 1px solid #233177;
+  color: #cbd5e1;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.footer-meta-note {
+  font-size: 0.68rem;
+  color: #64748b;
+}
+
+/* Old schedules & calendar classes maintained below */
+
 
 /* ==========================================================================
    SCHEDULES & MATCH CALENDAR
