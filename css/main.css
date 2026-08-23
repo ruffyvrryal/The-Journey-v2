@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   --bg-primary: #060738;
   --bg-secondary: #04051a;
   --bg-card: #080c30;
@@ -124,11 +124,33 @@ body {
   cursor: pointer;
 }
 
-/* Right Section: Season Dropdown + User Profile */
+/* Right Section: Switch Vault + Season Dropdown + User Profile */
 .header-right {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 16px;
+}
+
+.btn-vault-hub-link {
+  background: linear-gradient(135deg, #102060 0%, #0a1442 100%);
+  border: 1px solid #233488;
+  color: #38bdf8;
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.btn-vault-hub-link:hover {
+  background: #182c80;
+  border-color: #38bdf8;
+  color: #ffffff;
+  transform: translateY(-1px);
 }
 
 .season-selector-wrapper {

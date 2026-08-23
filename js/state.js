@@ -268,6 +268,8 @@ function createInitialSeasonData() {
 
 class StateStore {
   constructor() {
+    // Top-Level Application Mode: 'login' | 'manager_vault' | 'main_app'
+    this.appMode = firebaseService.isLoggedIn() ? 'manager_vault' : 'login';
     this.currentPage = 'home';
     this.selectedPlayerId = null;
     this.currentSeason = '2026/27';
@@ -278,12 +280,113 @@ class StateStore {
     this.clubName = 'Manchester United';
     this.leagueName = 'Premier League';
 
+    // Manager Career Vaults List (Matches Photo 2 Reference)
+    this.activeVaultId = 'vault_connor';
+    this.vaults = [
+      {
+        id: 'vault_connor',
+        firstName: 'John',
+        lastName: 'CONNOR',
+        managerName: 'John Connor',
+        clubName: 'Manchester United',
+        season: '2026/27',
+        winRate: '80%',
+        drawRate: '15%',
+        loseRate: '5%',
+        avatarTheme: 'avatar-orange'
+      },
+      {
+        id: 'vault_mccaully',
+        firstName: 'Edward',
+        lastName: 'McCAULLY',
+        managerName: 'Edward McCaully',
+        clubName: 'Wrexham',
+        season: '2026/27',
+        winRate: '80%',
+        drawRate: '15%',
+        loseRate: '5%',
+        avatarTheme: 'avatar-blue'
+      }
+    ];
+
     // Multi-Season Isolated Datasets
     this.seasonData = createInitialSeasonData();
     this.reconcileSquadShirtNumbers();
 
     this.listeners = [];
     this.loadPersistedData();
+  }
+
+  setAppMode(mode) {
+    this.appMode = mode;
+    this.notify();
+  }
+
+  selectVault(vaultId) {
+    const vault = this.vaults.find(v => v.id === vaultId) || this.vaults[0];
+    if (vault) {
+      this.activeVaultId = vault.id;
+      this.managerName = vault.managerName || `${vault.firstName} ${vault.lastName}`;
+      this.clubName = vault.clubName || 'Manchester United';
+      if (vault.seasonData) {
+        this.seasonData = vault.seasonData;
+      }
+      this.appMode = 'main_app';
+      this.persist();
+      this.notify();
+    }
+  }
+
+  addVault(vaultData) {
+    const newId = 'vault_' + Date.now();
+    const newVault = {
+      id: newId,
+      firstName: vaultData.firstName || vaultData.managerName?.split(' ')[0] || 'Manager',
+      lastName: vaultData.lastName || vaultData.managerName?.split(' ').slice(1).join(' ') || 'NEW',
+      managerName: vaultData.managerName || `${vaultData.firstName || ''} ${vaultData.lastName || ''}`.trim(),
+      clubName: vaultData.clubName || 'Manchester United',
+      season: vaultData.season || this.currentSeason || '2026/27',
+      winRate: vaultData.winRate || '80%',
+      drawRate: vaultData.drawRate || '15%',
+      loseRate: vaultData.loseRate || '5%',
+      avatarTheme: vaultData.avatarTheme || (this.vaults.length % 2 === 0 ? 'avatar-orange' : 'avatar-blue'),
+      seasonData: JSON.parse(JSON.stringify(createInitialSeasonData()))
+    };
+    this.vaults.push(newVault);
+    this.persist();
+    this.notify();
+    return newVault;
+  }
+
+  updateVault(vaultId, updatedFields) {
+    const index = this.vaults.findIndex(v => v.id === vaultId);
+    if (index !== -1) {
+      this.vaults[index] = {
+        ...this.vaults[index],
+        ...updatedFields
+      };
+      if (this.activeVaultId === vaultId) {
+        if (updatedFields.managerName) this.managerName = updatedFields.managerName;
+        if (updatedFields.clubName) this.clubName = updatedFields.clubName;
+      }
+      this.persist();
+      this.notify();
+    }
+  }
+
+  deleteVault(vaultId) {
+    if (this.vaults.length <= 1) {
+      alert('You must have at least one Manager Vault.');
+      return;
+    }
+    this.vaults = this.vaults.filter(v => v.id !== vaultId);
+    if (this.activeVaultId === vaultId) {
+      this.activeVaultId = this.vaults[0].id;
+      this.managerName = this.vaults[0].managerName;
+      this.clubName = this.vaults[0].clubName;
+    }
+    this.persist();
+    this.notify();
   }
 
   // Active Season Data Accessor (creates new season container if missing)
@@ -539,7 +642,9 @@ class StateStore {
       seasons: this.seasons,
       managerName: this.managerName,
       clubName: this.clubName,
-      seasonData: this.seasonData
+      seasonData: this.seasonData,
+      vaults: this.vaults,
+      activeVaultId: this.activeVaultId
     };
     await firebaseService.saveVaultToCloud(dataToSave);
   }
@@ -552,6 +657,10 @@ class StateStore {
       if (data.managerName) this.managerName = data.managerName;
       if (data.clubName) this.clubName = data.clubName;
       if (data.seasonData) this.seasonData = data.seasonData;
+      if (data.vaults && Array.isArray(data.vaults) && data.vaults.length > 0) {
+        this.vaults = data.vaults;
+      }
+      if (data.activeVaultId) this.activeVaultId = data.activeVaultId;
     }
     this.reconcileSquadShirtNumbers();
     this.notify();
