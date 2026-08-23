@@ -1,9 +1,10 @@
-﻿// Reactive State Store for The Journey FM Vault
+// Reactive State Store for The Journey FM Vault
 import { firebaseService } from './firebase-config.js';
 
 class StateStore {
   constructor() {
     this.currentPage = 'home';
+    this.selectedPlayerId = null;
     this.currentSeason = '2026/27';
     this.seasons = ['2024/25', '2025/26', '2026/27', '2027/28'];
     this.inGameDate = '2026-07-23';
@@ -182,6 +183,16 @@ class StateStore {
     this.notify();
   }
 
+  selectPlayer(id) {
+    this.selectedPlayerId = id;
+    this.notify();
+  }
+
+  clearSelectedPlayer() {
+    this.selectedPlayerId = null;
+    this.notify();
+  }
+
   addPlayer(player) {
     this.squad.push({
       id: Date.now(),
@@ -190,7 +201,21 @@ class StateStore {
     this.notify();
   }
 
+  updatePlayer(id, updatedFields) {
+    const index = this.squad.findIndex(p => p.id === id);
+    if (index !== -1) {
+      this.squad[index] = {
+        ...this.squad[index],
+        ...updatedFields
+      };
+      this.notify();
+    }
+  }
+
   removePlayer(id) {
+    if (this.selectedPlayerId === id) {
+      this.selectedPlayerId = null;
+    }
     this.squad = this.squad.filter(p => p.id !== id);
     this.notify();
   }

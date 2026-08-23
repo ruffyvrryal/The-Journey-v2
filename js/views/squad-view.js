@@ -1,6 +1,7 @@
 // Squad View - Positionally Separated Roster Tables
 import { store } from '../state.js';
 import { openAddPlayerModal, showToast } from './auth-modal.js';
+import { renderPlayerDetailView } from './player-detail-view.js';
 
 // Position Categorization Helper
 export function getPlayerCategory(pos) {
@@ -30,6 +31,12 @@ export function getPositionBadgeClass(pos) {
 }
 
 export function renderSquadView(container) {
+  // If a player is selected, render their full detailed profile screen
+  if (store.selectedPlayerId) {
+    renderPlayerDetailView(container, store.selectedPlayerId);
+    return;
+  }
+
   const allPlayers = store.squad || [];
 
   // Group players by position
@@ -52,11 +59,18 @@ export function renderSquadView(container) {
     const ratingVal = typeof p.rat === 'number' ? p.rat.toFixed(1) : Number(p.rat || 7.5).toFixed(1);
 
     return `
-      <tr class="squad-player-row" data-id="${p.id}">
+      <tr class="squad-player-row clickable-player-row" data-id="${p.id}" title="Click to view & edit detailed profile and upload photo for ${p.name}">
         <td class="player-name-cell">
-          <div class="player-avatar-circle">${p.name.charAt(0)}</div>
+          <div class="player-avatar-circle ${p.photo ? 'has-custom-photo' : ''}">
+            ${p.photo ? `
+              <img src="${p.photo}" alt="${p.name}" class="player-avatar-mini-img" />
+            ` : `
+              <span>${p.name.charAt(0)}</span>
+            `}
+          </div>
           <div class="player-name-meta">
             <span class="player-primary-name">${p.name}</span>
+            <span class="player-click-hint"><i class="fa-solid fa-arrow-up-right-from-square"></i> Profile</span>
           </div>
         </td>
         <td>
@@ -252,6 +266,18 @@ export function renderSquadView(container) {
       if (confirm(`Are you sure you want to release ${playerName} from the senior squad?`)) {
         store.removePlayer(id);
         showToast(`${playerName} released from squad.`);
+      }
+    };
+  });
+
+  // Bind Clickable Player Rows to Open Detailed Player View
+  container.querySelectorAll('.clickable-player-row').forEach(row => {
+    row.onclick = (e) => {
+      // Ignore if clicking on delete button
+      if (e.target.closest('.btn-del-player')) return;
+      const id = Number(row.getAttribute('data-id'));
+      if (id) {
+        store.selectPlayer(id);
       }
     };
   });
