@@ -893,6 +893,22 @@
   width: 60px;
   text-align: center;
   outline: none;
+  cursor: default;
+  pointer-events: none;
+}
+
+.rating-auto-lbl {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #00c853;
+  background: rgba(0, 200, 83, 0.12);
+  border: 1px solid rgba(0, 200, 83, 0.35);
+  border-radius: 4px;
+  padding: 1px 5px;
+  align-self: flex-end;
+  margin-bottom: 4px;
 }
 
 /* Bio Tiles Grid */

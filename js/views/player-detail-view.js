@@ -4,44 +4,45 @@ import { getPlayerCategory, getPositionBadgeClass, getCountryFlag } from './squa
 import { renderCountryOptions } from '../utils/countries.js';
 import { showToast } from './auth-modal.js';
 
-// Default attribute sets if none exist on the player yet
+// Default attribute sets if none exist on the player yet (1-99 scale)
 export function getDefaultAttributes(pos, rating = 8.0) {
   const isGk = getPlayerCategory(pos) === 'GK';
-  const baseVal = Math.min(20, Math.max(1, Math.round(rating * 1.8)));
+  // Map 1-10 FM rating to 1-99 base attribute value
+  const baseVal = Math.min(99, Math.max(1, Math.round(rating * 9.0)));
 
   if (isGk) {
     return {
       // Goalkeeping
       aerialReach: baseVal,
-      commandOfArea: baseVal - 1,
-      communication: baseVal - 1,
-      eccentricity: 10,
+      commandOfArea: Math.max(1, baseVal - 5),
+      communication: Math.max(1, baseVal - 5),
+      eccentricity: 45,
       handling: baseVal,
-      kicking: baseVal - 2,
+      kicking: Math.max(1, baseVal - 10),
       oneOnOnes: baseVal,
-      reflexes: Math.min(20, baseVal + 1),
-      rushingOut: baseVal - 2,
-      punching: baseVal - 2,
-      throwing: baseVal - 1,
+      reflexes: Math.min(99, baseVal + 5),
+      rushingOut: Math.max(1, baseVal - 10),
+      punching: Math.max(1, baseVal - 10),
+      throwing: Math.max(1, baseVal - 5),
       // Mental
       anticipation: baseVal,
       bravery: baseVal,
-      composure: baseVal - 1,
+      composure: Math.max(1, baseVal - 5),
       concentration: baseVal,
-      decisions: baseVal - 1,
-      determination: Math.min(20, baseVal + 1),
-      leadership: baseVal - 2,
+      decisions: Math.max(1, baseVal - 5),
+      determination: Math.min(99, baseVal + 5),
+      leadership: Math.max(1, baseVal - 10),
       positioning: baseVal,
-      teamwork: baseVal - 1,
-      vision: baseVal - 3,
+      teamwork: Math.max(1, baseVal - 5),
+      vision: Math.max(1, baseVal - 15),
       // Physical
-      acceleration: baseVal - 3,
+      acceleration: Math.max(1, baseVal - 15),
       agility: baseVal,
-      balance: baseVal - 1,
+      balance: Math.max(1, baseVal - 5),
       jumpingReach: baseVal,
-      naturalFitness: 16,
-      pace: baseVal - 3,
-      stamina: baseVal - 2,
+      naturalFitness: 72,
+      pace: Math.max(1, baseVal - 15),
+      stamina: Math.max(1, baseVal - 10),
       strength: baseVal
     };
   }
@@ -49,53 +50,63 @@ export function getDefaultAttributes(pos, rating = 8.0) {
   // Outfield player defaults
   return {
     // Technical
-    corners: 12,
-    crossing: 13,
+    corners: 54,
+    crossing: 59,
     dribbling: baseVal,
-    finishing: pos === 'ST' || pos === 'AF' || pos === 'CF' ? Math.min(20, baseVal + 1) : 12,
+    finishing: pos === 'ST' || pos === 'AF' || pos === 'CF' ? Math.min(99, baseVal + 5) : 54,
     firstTouch: baseVal,
-    freeKicks: 13,
-    heading: ['DC', 'CB', 'ST'].includes(pos) ? baseVal : 11,
-    longShots: 13,
-    longThrows: 8,
-    marking: ['DC', 'DL', 'DR', 'CB', 'LB', 'RB', 'DM'].includes(pos) ? baseVal : 8,
+    freeKicks: 59,
+    heading: ['DC', 'CB', 'ST'].includes(pos) ? baseVal : 50,
+    longShots: 59,
+    longThrows: 36,
+    marking: ['DC', 'DL', 'DR', 'CB', 'LB', 'RB', 'DM'].includes(pos) ? baseVal : 36,
     passing: baseVal,
-    penaltyTaking: 14,
-    tackling: ['DC', 'DL', 'DR', 'CB', 'LB', 'RB', 'DM'].includes(pos) ? baseVal : 10,
+    penaltyTaking: 63,
+    tackling: ['DC', 'DL', 'DR', 'CB', 'LB', 'RB', 'DM'].includes(pos) ? baseVal : 45,
     technique: baseVal,
     // Mental
-    aggression: 13,
+    aggression: 59,
     anticipation: baseVal,
-    bravery: baseVal - 1,
+    bravery: Math.max(1, baseVal - 5),
     composure: baseVal,
-    concentration: baseVal - 1,
+    concentration: Math.max(1, baseVal - 5),
     decisions: baseVal,
-    determination: Math.min(20, baseVal + 2),
-    flair: ['AML', 'AMR', 'AMC', 'ST'].includes(pos) ? Math.min(20, baseVal + 1) : 12,
-    leadership: 12,
+    determination: Math.min(99, baseVal + 9),
+    flair: ['AML', 'AMR', 'AMC', 'ST'].includes(pos) ? Math.min(99, baseVal + 5) : 54,
+    leadership: 54,
     offTheBall: baseVal,
-    positioning: ['DC', 'DL', 'DR', 'DM', 'MC'].includes(pos) ? baseVal : 11,
+    positioning: ['DC', 'DL', 'DR', 'DM', 'MC'].includes(pos) ? baseVal : 50,
     teamwork: baseVal,
-    vision: ['AMC', 'MC', 'AML', 'AMR'].includes(pos) ? baseVal : 12,
+    vision: ['AMC', 'MC', 'AML', 'AMR'].includes(pos) ? baseVal : 54,
     workRate: baseVal,
     // Physical
-    acceleration: Math.min(20, baseVal + 1),
+    acceleration: Math.min(99, baseVal + 5),
     agility: baseVal,
     balance: baseVal,
-    jumpingReach: ['DC', 'CB', 'ST'].includes(pos) ? baseVal : 11,
-    naturalFitness: 16,
-    pace: Math.min(20, baseVal + 1),
+    jumpingReach: ['DC', 'CB', 'ST'].includes(pos) ? baseVal : 50,
+    naturalFitness: 72,
+    pace: Math.min(99, baseVal + 5),
     stamina: baseVal,
     strength: baseVal
   };
 }
 
+// Calculate FM Rating (1.0-10.0) from the mean of all attributes (1-99 scale)
+export function calcRatingFromAttrs(attrsObj) {
+  const vals = Object.values(attrsObj).map(v => Number(v) || 1);
+  if (!vals.length) return 5.0;
+  const avg = vals.reduce((s, v) => s + v, 0) / vals.length;
+  // Map 1-99 → 1.0-10.0
+  const rating = 1.0 + (avg - 1) * (9.0 / 98.0);
+  return Math.min(10.0, Math.max(1.0, Math.round(rating * 10) / 10));
+}
+
 export function getAttributeColor(val) {
   const num = Number(val) || 0;
-  if (num >= 17) return 'attr-elite'; // 17-20 Gold/Yellow
-  if (num >= 14) return 'attr-great'; // 14-16 Green
-  if (num >= 10) return 'attr-good';  // 10-13 Blue
-  return 'attr-poor';                 // 1-9 Gray
+  if (num >= 80) return 'attr-elite'; // 80-99 Gold/Yellow — Elite
+  if (num >= 65) return 'attr-great'; // 65-79 Green — Great
+  if (num >= 45) return 'attr-good';  // 45-64 Blue — Good
+  return 'attr-poor';                 // 1-44 Gray — Developing
 }
 
 export function renderPlayerDetailView(container, playerId) {
@@ -152,7 +163,7 @@ export function renderPlayerDetailView(container, playerId) {
             name="${key}" 
             class="attr-num-input ${colorClass}" 
             min="1" 
-            max="20" 
+            max="99" 
             value="${value}" 
           />
         </div>
@@ -247,7 +258,8 @@ export function renderPlayerDetailView(container, playerId) {
 
             <div class="hero-rating-badge-wrap">
               <span class="hero-rating-lbl">FM RATING</span>
-              <input type="number" step="0.1" min="1.0" max="10.0" id="edit-player-rat" class="input-hero-rating" value="${Number(player.rat || 8.0).toFixed(1)}" />
+              <input type="number" step="0.1" min="1.0" max="10.0" id="edit-player-rat" class="input-hero-rating" value="${Number(player.rat || 8.0).toFixed(1)}" readonly title="Auto-calculated from attributes" />
+              <span class="rating-auto-lbl">Auto</span>
             </div>
           </div>
 
@@ -361,18 +373,18 @@ export function renderPlayerDetailView(container, playerId) {
         </div>
       </div>
 
-      <!-- FM ATTRIBUTES MATRIX (1-20 SCALE) -->
+      <!-- FM ATTRIBUTES MATRIX (1-99 SCALE) -->
       <div class="player-attributes-card">
         <div class="attributes-card-header">
           <div class="attr-header-title">
             <i class="fa-solid fa-sliders" style="color: var(--brand-yellow);"></i>
-            Player Attributes (FM 1–20 Scale)
+            Player Attributes (1–99 Scale)
           </div>
           <div class="attr-legend-bar">
-            <span class="legend-item"><span class="legend-dot dot-elite"></span> 17–20 Elite</span>
-            <span class="legend-item"><span class="legend-dot dot-great"></span> 14–16 Great</span>
-            <span class="legend-item"><span class="legend-dot dot-good"></span> 10–13 Good</span>
-            <span class="legend-item"><span class="legend-dot dot-poor"></span> 1–9 Developing</span>
+            <span class="legend-item"><span class="legend-dot dot-elite"></span> 80–99 Elite</span>
+            <span class="legend-item"><span class="legend-dot dot-great"></span> 65–79 Great</span>
+            <span class="legend-item"><span class="legend-dot dot-good"></span> 45–64 Good</span>
+            <span class="legend-item"><span class="legend-dot dot-poor"></span> 1–44 Developing</span>
           </div>
         </div>
 
@@ -513,13 +525,31 @@ export function renderPlayerDetailView(container, playerId) {
     </div>
   `;
 
-  // Dynamic color updating for attribute inputs as user types
+  // Helper: recalculate FM rating from current attribute inputs
+  const recalcRating = () => {
+    const allInputs = container.querySelectorAll('.attr-num-input');
+    if (!allInputs.length) return;
+    const attrMap = {};
+    allInputs.forEach(inp => {
+      const key = inp.getAttribute('name');
+      if (key) attrMap[key] = Number(inp.value) || 1;
+    });
+    const newRat = calcRatingFromAttrs(attrMap);
+    const ratInput = container.querySelector('#edit-player-rat');
+    if (ratInput) ratInput.value = newRat.toFixed(1);
+  };
+
+  // Dynamic color updating for attribute inputs as user types + live rating recalc
   container.querySelectorAll('.attr-num-input').forEach(input => {
     input.oninput = () => {
       const val = Number(input.value) || 0;
       input.className = `attr-num-input ${getAttributeColor(val)}`;
+      recalcRating();
     };
   });
+
+  // Initial rating calculation on page load
+  recalcRating();
 
   // Photo Upload Triggering
   const fileInput = container.querySelector('#player-photo-input');
@@ -615,7 +645,7 @@ export function renderPlayerDetailView(container, playerId) {
     const updatedData = {
       name: container.querySelector('#edit-player-name')?.value || player.name,
       pos: container.querySelector('#edit-player-pos')?.value || player.pos,
-      rat: Number(container.querySelector('#edit-player-rat')?.value) || player.rat,
+      rat: Number(container.querySelector('#edit-player-rat')?.value) || calcRatingFromAttrs(updatedAttrs),
       num: finalNum,
       number: finalNum,
       shirtNumber: finalNum,
