@@ -255,16 +255,54 @@ export function openAddMatchModal(matchToEdit = null) {
   const defaultAScore = matchToEdit?.awayScore !== undefined ? matchToEdit.awayScore : 0;
   const defaultComp = matchToEdit?.competition || store.leagueName || 'Premier League';
 
-  // Selected lineup set
-  const selectedLineup = new Set(matchToEdit?.lineup ? matchToEdit.lineup.map(Number) : squad.slice(0, 11).map(p => p.id));
-  
-  // Goalscorers & Assisters state
-  let goalscorersList = matchToEdit?.goalscorers ? JSON.parse(JSON.stringify(matchToEdit.goalscorers)) : [];
-  let assistersList = matchToEdit?.assisters ? JSON.parse(JSON.stringify(matchToEdit.assisters)) : [];
+  // Dynamic state values
+  let curDate = defaultDate;
+  let curGw = defaultGw;
+  let curHome = defaultHome;
+  let curAway = defaultAway;
+  let curHScore = defaultHScore;
+  let curAScore = defaultAScore;
+  let curComp = defaultComp;
 
   const modalRoot = document.createElement('div');
   modalRoot.id = 'match-modal-root';
   modalRoot.className = 'modal-backdrop';
+
+  const syncStateFromDOM = () => {
+    const elDate = modalRoot.querySelector('#match-date');
+    const elGw = modalRoot.querySelector('#match-gw');
+    const elHome = modalRoot.querySelector('#match-home');
+    const elAway = modalRoot.querySelector('#match-away');
+    const elHScore = modalRoot.querySelector('#match-hscore');
+    const elAScore = modalRoot.querySelector('#match-ascore');
+    const elComp = modalRoot.querySelector('#match-comp');
+
+    if (elDate) curDate = elDate.value;
+    if (elGw) curGw = Number(elGw.value) || 1;
+    if (elHome) curHome = elHome.value;
+    if (elAway) curAway = elAway.value;
+    if (elHScore) curHScore = Number(elHScore.value) || 0;
+    if (elAScore) curAScore = Number(elAScore.value) || 0;
+    if (elComp) curComp = elComp.value;
+
+    // Collect scorers
+    goalscorersList = [];
+    modalRoot.querySelectorAll('#goalscorers-container [data-g-idx]').forEach(row => {
+      const pId = Number(row.querySelector('.select-scorer')?.value);
+      const count = Number(row.querySelector('.input-scorer-count')?.value) || 1;
+      const p = squad.find(sq => sq.id === pId);
+      if (p) goalscorersList.push({ playerId: pId, name: p.name, count });
+    });
+
+    // Collect assisters
+    assistersList = [];
+    modalRoot.querySelectorAll('#assisters-container [data-a-idx]').forEach(row => {
+      const pId = Number(row.querySelector('.select-assister')?.value);
+      const count = Number(row.querySelector('.input-assister-count')?.value) || 1;
+      const p = squad.find(sq => sq.id === pId);
+      if (p) assistersList.push({ playerId: pId, name: p.name, count });
+    });
+  };
 
   const renderModalContent = () => {
     modalRoot.innerHTML = `
@@ -283,62 +321,62 @@ export function openAddMatchModal(matchToEdit = null) {
             <div class="form-group">
               <label class="form-label">Competition</label>
               <select id="match-comp" class="form-select">
-                <option value="Premier League" ${defaultComp === 'Premier League' ? 'selected' : ''}>Premier League</option>
-                <option value="UEFA Champions League" ${defaultComp === 'UEFA Champions League' ? 'selected' : ''}>UEFA Champions League</option>
-                <option value="FA Cup" ${defaultComp === 'FA Cup' ? 'selected' : ''}>FA Cup</option>
-                <option value="Carabao Cup" ${defaultComp === 'Carabao Cup' ? 'selected' : ''}>Carabao Cup</option>
-                <option value="Friendly" ${defaultComp === 'Friendly' ? 'selected' : ''}>Club Friendly</option>
+                <option value="Premier League" ${curComp === 'Premier League' ? 'selected' : ''}>Premier League</option>
+                <option value="UEFA Champions League" ${curComp === 'UEFA Champions League' ? 'selected' : ''}>UEFA Champions League</option>
+                <option value="FA Cup" ${curComp === 'FA Cup' ? 'selected' : ''}>FA Cup</option>
+                <option value="Carabao Cup" ${curComp === 'Carabao Cup' ? 'selected' : ''}>Carabao Cup</option>
+                <option value="Friendly" ${curComp === 'Friendly' ? 'selected' : ''}>Club Friendly</option>
               </select>
             </div>
             <div class="form-group">
               <label class="form-label">Gameweek / Rd</label>
-              <input type="number" id="match-gw" class="form-input" value="${defaultGw}" min="1" max="60" />
+              <input type="number" id="match-gw" class="form-input" value="${curGw}" min="1" max="60" />
             </div>
             <div class="form-group">
               <label class="form-label">Match Date</label>
-              <input type="text" id="match-date" class="form-input" value="${defaultDate}" placeholder="DD/MM/YYYY" />
+              <input type="text" id="match-date" class="form-input" value="${curDate}" placeholder="DD/MM/YYYY" />
             </div>
           </div>
 
           <!-- Row 2: Teams & Scores -->
-          <div style="display: grid; grid-template-columns: 1fr 65px 65px 1fr; gap: 8px; align-items: flex-end; background: #070a24; padding: 12px; border-radius: 8px; border: 1px solid #1c2766;">
+          <div style="display: grid; grid-template-columns: 1fr 70px 70px 1fr; gap: 8px; align-items: flex-end; background: #070a24; padding: 12px; border-radius: 8px; border: 1px solid #1c2766;">
             <div class="form-group">
-              <label class="form-label" style="color: #38bdf8;">Home Team</label>
-              <input type="text" id="match-home" class="form-input" value="${defaultHome}" required />
+              <label class="form-label" style="color: #38bdf8; font-weight: 700;">Home Team</label>
+              <input type="text" id="match-home" class="form-input" value="${curHome}" required />
             </div>
             <div class="form-group">
-              <label class="form-label" style="text-align: center;">Score</label>
-              <input type="number" id="match-hscore" class="form-input" value="${defaultHScore}" min="0" style="text-align: center; font-weight: 800; font-size: 1.1rem; color: #fbbf24;" />
+              <label class="form-label" style="text-align: center; font-weight: 700;">Score</label>
+              <input type="number" id="match-hscore" class="form-input" value="${curHScore}" min="0" style="text-align: center; font-weight: 900; font-size: 1.25rem; color: #fbbf24; padding: 4px;" />
             </div>
             <div class="form-group">
-              <label class="form-label" style="text-align: center;">Score</label>
-              <input type="number" id="match-ascore" class="form-input" value="${defaultAScore}" min="0" style="text-align: center; font-weight: 800; font-size: 1.1rem; color: #fbbf24;" />
+              <label class="form-label" style="text-align: center; font-weight: 700;">Score</label>
+              <input type="number" id="match-ascore" class="form-input" value="${curAScore}" min="0" style="text-align: center; font-weight: 900; font-size: 1.25rem; color: #fbbf24; padding: 4px;" />
             </div>
             <div class="form-group">
-              <label class="form-label" style="color: #38bdf8;">Away Team</label>
-              <input type="text" id="match-away" class="form-input" value="${defaultAway}" required />
+              <label class="form-label" style="color: #38bdf8; font-weight: 700;">Away Team</label>
+              <input type="text" id="match-away" class="form-input" value="${curAway}" required />
             </div>
           </div>
 
-          <!-- Section 3: Match Lineup & Appearances -->
+          <!-- Section 3: Match Lineup & Appearances (Directly updates Squad and Analytics!) -->
           <div class="form-group">
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
-              <label class="form-label" style="font-weight: 700;">
-                <i class="fa-solid fa-users" style="color: #10b981;"></i> Team Lineup (${selectedLineup.size} Players Featured)
+              <label class="form-label" style="font-weight: 800; color: #38bdf8; font-size: 0.85rem;">
+                <i class="fa-solid fa-users"></i> Team Lineup (${selectedLineup.size} Players Selected)
               </label>
-              <button type="button" id="btn-quick-starting-11" style="background: transparent; border: none; color: #38bdf8; font-size: 0.75rem; font-weight: 700; cursor: pointer;">
+              <button type="button" id="btn-quick-starting-11" style="background: #102048; border: 1px solid #233772; color: #38bdf8; padding: 3px 10px; border-radius: 4px; font-size: 0.72rem; font-weight: 800; cursor: pointer;">
                 Select Top 11
               </button>
             </div>
-            <div style="font-size: 0.72rem; color: #94a3b8; margin-bottom: 6px;">
-              Players selected below will receive <strong>+1 Match Appearance</strong> in the squad tables.
+            <div style="font-size: 0.72rem; color: #cbd5e1; margin-bottom: 6px;">
+              Every checked player will automatically receive <strong>+1 Match Appearance</strong> in the <strong>Squad</strong> and <strong>Data Analytics</strong> tables.
             </div>
 
-            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 6px; max-height: 140px; overflow-y: auto; background: #05071a; padding: 8px; border-radius: 6px; border: 1px solid #16204e;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(135px, 1fr)); gap: 6px; max-height: 140px; overflow-y: auto; background: #05071a; padding: 8px; border-radius: 6px; border: 1px solid #16204e;">
               ${squad.map(p => {
                 const isChecked = selectedLineup.has(p.id);
                 return `
-                  <label style="display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: ${isChecked ? '#ffffff' : '#94a3b8'}; cursor: pointer; background: ${isChecked ? '#0e1c4e' : 'transparent'}; padding: 4px 6px; border-radius: 4px;">
+                  <label style="display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: ${isChecked ? '#ffffff' : '#94a3b8'}; cursor: pointer; background: ${isChecked ? '#0e1c4e' : 'transparent'}; padding: 4px 6px; border-radius: 4px; border: 1px solid ${isChecked ? '#233772' : 'transparent'};">
                     <input type="checkbox" class="chk-lineup-player" data-id="${p.id}" ${isChecked ? 'checked' : ''} />
                     <span style="font-weight: 800; color: #fbbf24; font-size: 0.7rem;">#${p.num || p.number || '—'}</span>
                     <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1;">${p.name.split(' ').pop()} (${p.pos})</span>
@@ -351,16 +389,16 @@ export function openAddMatchModal(matchToEdit = null) {
           <!-- Section 4: Goalscorers -->
           <div class="form-group">
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
-              <label class="form-label" style="font-weight: 700;">
-                <i class="fa-solid fa-futbol" style="color: #fbbf24;"></i> Goalscorers (Squad Stats +Goals)
+              <label class="form-label" style="font-weight: 800; color: #4ade80; font-size: 0.85rem;">
+                <i class="fa-solid fa-futbol"></i> Goalscorers (Auto-adds Goals to Player Stats)
               </label>
-              <button type="button" id="btn-add-goalscorer-row" style="background: #102048; border: 1px solid #233772; color: #38bdf8; padding: 2px 8px; border-radius: 4px; font-size: 0.72rem; font-weight: 700; cursor: pointer;">
-                + Add Scorer
+              <button type="button" id="btn-add-goalscorer-row" style="background: #102048; border: 1px solid #233772; color: #4ade80; padding: 3px 10px; border-radius: 4px; font-size: 0.72rem; font-weight: 800; cursor: pointer;">
+                + Add Goalscorer
               </button>
             </div>
             <div id="goalscorers-container" style="display: flex; flex-direction: column; gap: 6px;">
               ${goalscorersList.length === 0 ? `
-                <div style="font-size: 0.72rem; color: #64748b; font-style: italic;">No goalscorers added. Click "+ Add Scorer" if your players scored.</div>
+                <div style="font-size: 0.72rem; color: #64748b; font-style: italic;">No goalscorers added yet. Click "+ Add Goalscorer" to select players who scored.</div>
               ` : goalscorersList.map((g, idx) => `
                 <div style="display: flex; align-items: center; gap: 8px;" data-g-idx="${idx}">
                   <select class="form-select select-scorer" style="flex: 1; padding: 6px 10px; font-size: 0.8rem;">
@@ -368,8 +406,8 @@ export function openAddMatchModal(matchToEdit = null) {
                       <option value="${p.id}" ${Number(p.id) === Number(g.playerId) ? 'selected' : ''}>#${p.num || p.number || '—'} ${p.name} (${p.pos})</option>
                     `).join('')}
                   </select>
-                  <input type="number" class="form-input input-scorer-count" value="${g.count || 1}" min="1" max="10" style="width: 60px; padding: 6px; text-align: center;" title="Goals scored" />
-                  <button type="button" class="btn-remove-scorer" data-idx="${idx}" style="background: #dc2626; color: white; border: none; border-radius: 4px; width: 26px; height: 26px; cursor: pointer;">&times;</button>
+                  <input type="number" class="form-input input-scorer-count" value="${g.count || 1}" min="1" max="10" style="width: 65px; padding: 6px; text-align: center; font-weight: 800;" title="Goals scored" />
+                  <button type="button" class="btn-remove-scorer" data-idx="${idx}" style="background: #dc2626; color: white; border: none; border-radius: 4px; width: 28px; height: 28px; cursor: pointer; display: flex; align-items: center; justify-content: center;">&times;</button>
                 </div>
               `).join('')}
             </div>
@@ -378,16 +416,16 @@ export function openAddMatchModal(matchToEdit = null) {
           <!-- Section 5: Assisters -->
           <div class="form-group">
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
-              <label class="form-label" style="font-weight: 700;">
-                <i class="fa-solid fa-handshake-angle" style="color: #38bdf8;"></i> Assisters (Squad Stats +Assists)
+              <label class="form-label" style="font-weight: 800; color: #38bdf8; font-size: 0.85rem;">
+                <i class="fa-solid fa-handshake-angle"></i> Assisters (Auto-adds Assists to Player Stats)
               </label>
-              <button type="button" id="btn-add-assister-row" style="background: #102048; border: 1px solid #233772; color: #38bdf8; padding: 2px 8px; border-radius: 4px; font-size: 0.72rem; font-weight: 700; cursor: pointer;">
+              <button type="button" id="btn-add-assister-row" style="background: #102048; border: 1px solid #233772; color: #38bdf8; padding: 3px 10px; border-radius: 4px; font-size: 0.72rem; font-weight: 800; cursor: pointer;">
                 + Add Assister
               </button>
             </div>
             <div id="assisters-container" style="display: flex; flex-direction: column; gap: 6px;">
               ${assistersList.length === 0 ? `
-                <div style="font-size: 0.72rem; color: #64748b; font-style: italic;">No assisters added. Click "+ Add Assister" if your players assisted.</div>
+                <div style="font-size: 0.72rem; color: #64748b; font-style: italic;">No assisters added yet. Click "+ Add Assister" to select players who assisted.</div>
               ` : assistersList.map((a, idx) => `
                 <div style="display: flex; align-items: center; gap: 8px;" data-a-idx="${idx}">
                   <select class="form-select select-assister" style="flex: 1; padding: 6px 10px; font-size: 0.8rem;">
@@ -395,8 +433,8 @@ export function openAddMatchModal(matchToEdit = null) {
                       <option value="${p.id}" ${Number(p.id) === Number(a.playerId) ? 'selected' : ''}>#${p.num || p.number || '—'} ${p.name} (${p.pos})</option>
                     `).join('')}
                   </select>
-                  <input type="number" class="form-input input-assister-count" value="${a.count || 1}" min="1" max="10" style="width: 60px; padding: 6px; text-align: center;" title="Assists made" />
-                  <button type="button" class="btn-remove-assister" data-idx="${idx}" style="background: #dc2626; color: white; border: none; border-radius: 4px; width: 26px; height: 26px; cursor: pointer;">&times;</button>
+                  <input type="number" class="form-input input-assister-count" value="${a.count || 1}" min="1" max="10" style="width: 65px; padding: 6px; text-align: center; font-weight: 800;" title="Assists made" />
+                  <button type="button" class="btn-remove-assister" data-idx="${idx}" style="background: #dc2626; color: white; border: none; border-radius: 4px; width: 28px; height: 28px; cursor: pointer; display: flex; align-items: center; justify-content: center;">&times;</button>
                 </div>
               `).join('')}
             </div>
@@ -421,6 +459,7 @@ export function openAddMatchModal(matchToEdit = null) {
     // Bind Lineup Checkbox Changes
     modalRoot.querySelectorAll('.chk-lineup-player').forEach(chk => {
       chk.onchange = () => {
+        syncStateFromDOM();
         const pId = Number(chk.getAttribute('data-id'));
         if (chk.checked) selectedLineup.add(pId);
         else selectedLineup.delete(pId);
@@ -432,6 +471,7 @@ export function openAddMatchModal(matchToEdit = null) {
     const btnQuick11 = modalRoot.querySelector('#btn-quick-starting-11');
     if (btnQuick11) {
       btnQuick11.onclick = () => {
+        syncStateFromDOM();
         selectedLineup.clear();
         squad.slice(0, 11).forEach(p => selectedLineup.add(p.id));
         renderModalContent();
@@ -442,6 +482,7 @@ export function openAddMatchModal(matchToEdit = null) {
     const btnAddScorer = modalRoot.querySelector('#btn-add-goalscorer-row');
     if (btnAddScorer) {
       btnAddScorer.onclick = () => {
+        syncStateFromDOM();
         if (squad.length > 0) {
           goalscorersList.push({ playerId: squad[0].id, count: 1 });
           renderModalContent();
@@ -452,6 +493,7 @@ export function openAddMatchModal(matchToEdit = null) {
     // Remove Goalscorer Row
     modalRoot.querySelectorAll('.btn-remove-scorer').forEach(btn => {
       btn.onclick = () => {
+        syncStateFromDOM();
         const idx = Number(btn.getAttribute('data-idx'));
         goalscorersList.splice(idx, 1);
         renderModalContent();
@@ -462,6 +504,7 @@ export function openAddMatchModal(matchToEdit = null) {
     const btnAddAssister = modalRoot.querySelector('#btn-add-assister-row');
     if (btnAddAssister) {
       btnAddAssister.onclick = () => {
+        syncStateFromDOM();
         if (squad.length > 0) {
           assistersList.push({ playerId: squad[0].id, count: 1 });
           renderModalContent();
@@ -472,6 +515,7 @@ export function openAddMatchModal(matchToEdit = null) {
     // Remove Assister Row
     modalRoot.querySelectorAll('.btn-remove-assister').forEach(btn => {
       btn.onclick = () => {
+        syncStateFromDOM();
         const idx = Number(btn.getAttribute('data-idx'));
         assistersList.splice(idx, 1);
         renderModalContent();
@@ -482,52 +526,28 @@ export function openAddMatchModal(matchToEdit = null) {
     const btnSave = modalRoot.querySelector('#btn-save-match-result');
     if (btnSave) {
       btnSave.onclick = () => {
-        const homeName = modalRoot.querySelector('#match-home').value.trim() || 'Man Utd';
-        const awayName = modalRoot.querySelector('#match-away').value.trim() || 'Opponent';
-        const hScore = Number(modalRoot.querySelector('#match-hscore').value) || 0;
-        const aScore = Number(modalRoot.querySelector('#match-ascore').value) || 0;
-        const gw = Number(modalRoot.querySelector('#match-gw').value) || 1;
-        const mDate = modalRoot.querySelector('#match-date').value.trim() || defaultDate;
-        const comp = modalRoot.querySelector('#match-comp').value;
-
-        // Collect Scorers from DOM
-        const finalScorers = [];
-        modalRoot.querySelectorAll('#goalscorers-container [data-g-idx]').forEach(row => {
-          const pId = Number(row.querySelector('.select-scorer').value);
-          const count = Number(row.querySelector('.input-scorer-count').value) || 1;
-          const p = squad.find(sq => sq.id === pId);
-          if (p) finalScorers.push({ playerId: pId, name: p.name, count });
-        });
-
-        // Collect Assisters from DOM
-        const finalAssisters = [];
-        modalRoot.querySelectorAll('#assisters-container [data-a-idx]').forEach(row => {
-          const pId = Number(row.querySelector('.select-assister').value);
-          const count = Number(row.querySelector('.input-assister-count').value) || 1;
-          const p = squad.find(sq => sq.id === pId);
-          if (p) finalAssisters.push({ playerId: pId, name: p.name, count });
-        });
+        syncStateFromDOM();
 
         const payload = {
-          gameweek: gw,
-          date: mDate,
-          home: homeName,
-          homeScore: hScore,
-          awayScore: aScore,
-          away: awayName,
-          competition: comp,
+          gameweek: curGw,
+          date: curDate,
+          home: curHome.trim() || 'Man Utd',
+          homeScore: curHScore,
+          awayScore: curAScore,
+          away: curAway.trim() || 'Opponent',
+          competition: curComp,
           status: 'FT',
           lineup: Array.from(selectedLineup),
-          goalscorers: finalScorers,
-          assisters: finalAssisters
+          goalscorers: goalscorersList,
+          assisters: assistersList
         };
 
         if (isEdit) {
           store.updateMatchResult(matchToEdit.id, payload);
-          showToast(`Match GW ${gw} updated! Stats & standings live-synced.`);
+          showToast(`Match GW ${curGw} updated! Squad appearances & analytics recalculated.`);
         } else {
           store.addMatchResult(payload);
-          showToast(`Match result recorded! Appearances, goals, and records updated.`);
+          showToast(`Match recorded! Lineup appearances, goals, and analytics updated.`);
         }
 
         closeModal();
