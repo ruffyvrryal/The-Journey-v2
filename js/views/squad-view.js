@@ -39,11 +39,17 @@ export function renderSquadView(container) {
 
   const allPlayers = store.squad || [];
 
-  // Group players by position
-  const goalkeepers = allPlayers.filter(p => getPlayerCategory(p.pos) === 'GK');
-  const defenders = allPlayers.filter(p => getPlayerCategory(p.pos) === 'DEF');
-  const midfielders = allPlayers.filter(p => getPlayerCategory(p.pos) === 'MID');
-  const forwards = allPlayers.filter(p => getPlayerCategory(p.pos) === 'FWD');
+  // Group players by position, then sort by shirt number (no number → end)
+  const sortByShirt = (arr) => [...arr].sort((a, b) => {
+    const na = Number(a.num) || Number(a.shirtNumber) || 9999;
+    const nb = Number(b.num) || Number(b.shirtNumber) || 9999;
+    return na - nb;
+  });
+
+  const goalkeepers  = sortByShirt(allPlayers.filter(p => getPlayerCategory(p.pos) === 'GK'));
+  const defenders   = sortByShirt(allPlayers.filter(p => getPlayerCategory(p.pos) === 'DEF'));
+  const midfielders = sortByShirt(allPlayers.filter(p => getPlayerCategory(p.pos) === 'MID'));
+  const forwards    = sortByShirt(allPlayers.filter(p => getPlayerCategory(p.pos) === 'FWD'));
 
   // Compute Squad Summary Stats
   const totalCount = allPlayers.length;
@@ -57,9 +63,13 @@ export function renderSquadView(container) {
     const fitVal = Number(p.fit) || 95;
     const fitColor = fitVal >= 95 ? '#22c55e' : fitVal >= 85 ? '#eab308' : '#ef4444';
     const ratingVal = typeof p.rat === 'number' ? p.rat.toFixed(1) : Number(p.rat || 7.5).toFixed(1);
+    const shirtNum = p.num || p.shirtNumber || null;
 
     return `
       <tr class="squad-player-row clickable-player-row" data-id="${p.id}" title="Click to view & edit detailed profile and upload photo for ${p.name}">
+        <td class="shirt-num-cell">
+          ${shirtNum ? `<span class="shirt-number-badge">${shirtNum}</span>` : `<span class="shirt-number-badge shirt-unassigned">—</span>`}
+        </td>
         <td class="player-name-cell">
           <div class="player-avatar-circle ${p.photo ? 'has-custom-photo' : ''}">
             ${p.photo ? `
@@ -133,6 +143,7 @@ export function renderSquadView(container) {
             <table class="full-data-table squad-table">
               <thead>
                 <tr>
+                  <th class="shirt-num-th" title="Shirt Number">#</th>
                   <th>Player Name</th>
                   <th>Position</th>
                   <th style="text-align: center;">Age</th>

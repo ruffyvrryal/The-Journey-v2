@@ -488,7 +488,57 @@
   color: #64748b;
 }
 
+/* Shirt Number Column */
+.shirt-num-th {
+  width: 40px;
+  min-width: 36px;
+  text-align: center;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  color: #64748b;
+  padding-right: 4px;
+}
+
+.shirt-num-cell {
+  text-align: center;
+  width: 40px;
+  padding: 0 4px;
+}
+
+.shirt-number-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  height: 26px;
+  padding: 0 6px;
+  background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.04) 100%);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #e2e8f0;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  transition: all 0.15s ease;
+}
+
+.shirt-number-badge.shirt-unassigned {
+  color: #475569;
+  border-color: rgba(255,255,255,0.05);
+  background: rgba(255,255,255,0.02);
+  font-weight: 400;
+  font-size: 0.9rem;
+}
+
+.clickable-player-row:hover .shirt-number-badge:not(.shirt-unassigned) {
+  background: linear-gradient(135deg, rgba(56,189,248,0.2) 0%, rgba(56,189,248,0.08) 100%);
+  border-color: rgba(56,189,248,0.35);
+  color: #7dd3fc;
+}
+
 /* Clickable Squad Row Styling */
+
 .clickable-player-row {
   cursor: pointer;
   transition: all 0.15s ease;
