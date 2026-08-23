@@ -2246,8 +2246,52 @@
   color: #38bdf8;
 }
 
+/* Position Filter Pills */
+.pos-filter-btn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pos-filter-btn:hover {
+  color: #ffffff;
+}
+
+.pos-filter-btn.active {
+  background-color: #1e2968;
+  color: #38bdf8;
+}
+
+/* Sortable Table Headers */
+.sortable-th {
+  user-select: none;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.sortable-th:hover {
+  background-color: #141f5e !important;
+  color: #38bdf8 !important;
+}
+
+.sort-icon {
+  font-size: 0.65rem;
+  color: #fbbf24;
+  margin-left: 2px;
+}
+
+.analytics-player-row:hover td {
+  background-color: rgba(56, 189, 248, 0.08);
+}
+
 @media (max-width: 800px) {
   .tactics-layout {
     grid-template-columns: 1fr;
   }
 }
+
