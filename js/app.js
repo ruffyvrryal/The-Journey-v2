@@ -1,4 +1,4 @@
-﻿// Main Application Coordinator & View Router for The Journey V2
+// Main Application Coordinator & View Router for The Journey V2
 import { store } from './state.js';
 import { firebaseService } from './firebase-config.js';
 import { openAuthModal, showToast } from './views/auth-modal.js';
@@ -121,47 +121,82 @@ class App {
         </button>
       </nav>
 
-      <!-- MAIN VIEWPORT WITH SLEEK TABLET MOCKUP -->
+      <!-- MAIN VIEWPORT WITH ULTRA-REALISTIC TABLET MOCKUP -->
       <div class="main-viewport">
-        <div class="tablet-container">
-          <!-- Top Tablet Camera Dot -->
-          <div class="tablet-camera-notch"></div>
+        <div class="tablet-hardware-wrapper">
+          <!-- Physical Hardware Buttons -->
+          <div class="tablet-btn-power" title="Power / Lock"></div>
+          <div class="tablet-btn-vol-up" title="Volume Up"></div>
+          <div class="tablet-btn-vol-down" title="Volume Down"></div>
 
-          <!-- Tablet Screen Container -->
-          <div class="tablet-screen">
-            <!-- Faux Browser URL Bar -->
-            <div class="browser-top-bar">
-              <div class="browser-action-left">
-                <button class="browser-reload-btn" id="btn-browser-refresh" title="Reload View">
-                  <i class="fa-solid fa-rotate-right"></i>
-                </button>
-              </div>
-
-              <div class="browser-url-pill" id="browser-url-text">
-                www.thejourney.com/html/chaseyourdreams
-              </div>
-
-              <div class="browser-controls-right">
-                <div class="control-dot dot-green" title="Maximize">+</div>
-                <div class="control-dot dot-yellow" title="Minimize">-</div>
-                <div class="control-dot dot-red" title="Close">x</div>
+          <!-- Main Tablet Body -->
+          <div class="tablet-container">
+            <!-- Top Bezel: Acoustic Speaker Slit + TrueDepth Camera Assembly -->
+            <div class="tablet-top-bezel-bar">
+              <div class="tablet-speaker-slit"></div>
+              <div class="tablet-camera-assembly">
+                <div class="tablet-sensor-dot"></div>
+                <div class="tablet-camera-notch" title="Front Camera"></div>
+                <div class="tablet-mic-hole"></div>
               </div>
             </div>
 
-            <!-- Main Inner Screen Dynamic Canvas -->
-            <div class="screen-canvas" id="screen-canvas"></div>
+            <!-- Tablet Screen Container -->
+            <div class="tablet-screen">
+              <!-- Glass Glare Specular Reflection -->
+              <div class="tablet-screen-glare"></div>
+
+              <!-- Faux Browser Modern Top Bar -->
+              <div class="browser-top-bar">
+                <div class="browser-action-left">
+                  <button class="browser-nav-btn" id="btn-browser-back" title="Back">
+                    <i class="fa-solid fa-chevron-left"></i>
+                  </button>
+                  <button class="browser-nav-btn" id="btn-browser-fwd" title="Forward">
+                    <i class="fa-solid fa-chevron-right"></i>
+                  </button>
+                  <button class="browser-reload-btn" id="btn-browser-refresh" title="Reload View">
+                    <i class="fa-solid fa-rotate-right"></i>
+                  </button>
+                </div>
+
+                <div class="browser-url-pill" id="browser-url-text" title="Encrypted Football Manager Vault Cloud URL">
+                  <i class="fa-solid fa-lock browser-url-lock"></i>
+                  <span class="browser-url-domain">thejourney.fm</span><span class="browser-url-path">/vault/career/${store.currentSeason.replace('/', '-')}/overview</span>
+                </div>
+
+                <div class="browser-controls-right">
+                  <div class="control-dot dot-green" title="Expand View">+</div>
+                  <div class="control-dot dot-yellow" title="Minimize View">-</div>
+                  <div class="control-dot dot-red" title="Close View">x</div>
+                </div>
+              </div>
+
+              <!-- Main Inner Screen Dynamic Canvas -->
+              <div class="screen-canvas" id="screen-canvas"></div>
+            </div>
+
+            <!-- Bottom Bezel: Home Gesture Indicator -->
+            <div class="tablet-bottom-bezel-bar">
+              <div class="tablet-home-indicator" title="Home Indicator"></div>
+            </div>
           </div>
         </div>
 
         <!-- Watermark Footer -->
         <div class="tablet-footer-credit">
-          Created by Ruffy Prasetya
+          <i class="fa-solid fa-code" style="font-size: 0.75rem; color: #38bdf8;"></i> Designed & Developed by <span>Ruffy Prasetya</span>
         </div>
       </div>
     `;
   }
 
   bindEvents() {
+    // Navigation back/forward buttons
+    const btnBack = document.getElementById('btn-browser-back');
+    const btnFwd = document.getElementById('btn-browser-fwd');
+    if (btnBack) btnBack.onclick = () => showToast('Browser navigation: Home', 'info');
+    if (btnFwd) btnFwd.onclick = () => showToast('Browser navigation: Forward', 'info');
     // Brand click returns to Home
     document.getElementById('brand-home-link').onclick = () => store.setPage('home');
 

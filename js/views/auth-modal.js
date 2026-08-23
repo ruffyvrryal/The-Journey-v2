@@ -1,4 +1,4 @@
-﻿// Auth Modal, Firebase Config, & Data Editor Modals
+// Auth Modal, Firebase Config, & Data Editor Modals
 import { firebaseService } from '../firebase-config.js';
 import { store } from '../state.js';
 
@@ -314,9 +314,22 @@ export function openAddMatchModal() {
   };
 }
 
-export function openAddPlayerModal() {
+export function openAddPlayerModal(defaultPos = 'MC') {
   const existing = document.getElementById('player-modal-root');
   if (existing) existing.remove();
+
+  const posOptions = [
+    { value: 'GK', label: 'GK (Goalkeeper)' },
+    { value: 'DC', label: 'DC (Centre-Back)' },
+    { value: 'DL', label: 'DL (Left-Back)' },
+    { value: 'DR', label: 'DR (Right-Back)' },
+    { value: 'DM', label: 'DM (Defensive Mid)' },
+    { value: 'MC', label: 'MC (Central Mid)' },
+    { value: 'AMC', label: 'AMC (Attacking Mid)' },
+    { value: 'AML', label: 'AML (Left Winger)' },
+    { value: 'AMR', label: 'AMR (Right Winger)' },
+    { value: 'ST', label: 'ST (Striker)' }
+  ];
 
   const modalRoot = document.createElement('div');
   modalRoot.id = 'player-modal-root';
@@ -338,16 +351,9 @@ export function openAddPlayerModal() {
           <div class="form-group">
             <label class="form-label">Position</label>
             <select id="p-pos" class="form-select">
-              <option value="GK">GK (Goalkeeper)</option>
-              <option value="DC">DC (Centre-Back)</option>
-              <option value="DL">DL (Left-Back)</option>
-              <option value="DR">DR (Right-Back)</option>
-              <option value="DM">DM (Defensive Mid)</option>
-              <option value="MC" selected>MC (Central Mid)</option>
-              <option value="AMC">AMC (Attacking Mid)</option>
-              <option value="AML">AML (Left Winger)</option>
-              <option value="AMR">AMR (Right Winger)</option>
-              <option value="ST">ST (Striker)</option>
+              ${posOptions.map(opt => `
+                <option value="${opt.value}" ${opt.value === defaultPos ? 'selected' : ''}>${opt.label}</option>
+              `).join('')}
             </select>
           </div>
           <div class="form-group">

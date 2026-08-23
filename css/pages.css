@@ -1,4 +1,4 @@
-﻿/* ==========================================================================
+/* ==========================================================================
    SECONDARY VIEWS & PAGE STYLING (Squad, Tactics, Schedules, Tables, etc.)
    ========================================================================== */
 
@@ -130,6 +130,7 @@
   padding: 2px 7px;
   border-radius: 4px;
   display: inline-block;
+  letter-spacing: 0.02em;
 }
 
 .pos-gk { background-color: #f59e0b; color: #000; }
@@ -144,6 +145,347 @@
   padding: 2px 6px;
   border-radius: 3px;
   font-size: 0.75rem;
+}
+
+/* ==========================================================================
+   POSITION-SEPARATED SQUAD VIEW STYLING
+   ========================================================================== */
+
+/* Squad Summary Statistics Tiles Grid */
+.squad-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.squad-stat-tile {
+  background-color: var(--bg-card);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.squad-stat-tile:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.squad-stat-tile .stat-lbl {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.squad-stat-tile .stat-val {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.squad-stat-tile .stat-unit {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-dim);
+}
+
+.squad-stat-tile .val-gk { color: #f59e0b; }
+.squad-stat-tile .val-df { color: #38bdf8; }
+.squad-stat-tile .val-mf { color: #34d399; }
+.squad-stat-tile .val-fw { color: #f87171; }
+
+/* Position Filter Pills */
+.squad-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 4px 0;
+}
+
+.squad-filter-pill {
+  background-color: #0b0f33;
+  color: #94a3b8;
+  border: 1px solid #1e265c;
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.squad-filter-pill:hover {
+  background-color: #151d52;
+  color: #ffffff;
+  border-color: #38bdf8;
+}
+
+.squad-filter-pill.active {
+  background-color: #1e2a78;
+  color: #ffffff;
+  border-color: var(--brand-yellow);
+  box-shadow: 0 2px 8px rgba(30, 42, 120, 0.4);
+}
+
+.filter-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.dot-gk { background-color: #f59e0b; }
+.dot-df { background-color: #3b82f6; }
+.dot-mf { background-color: #10b981; }
+.dot-fw { background-color: #ef4444; }
+
+/* Squad Tables Vertical Stack */
+.squad-tables-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Individual Position Group Card */
+.position-group-card {
+  background-color: var(--bg-card);
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  transition: border-color 0.2s ease;
+}
+
+.position-group-card.theme-gk {
+  border-left: 4px solid #f59e0b;
+}
+
+.position-group-card.theme-df {
+  border-left: 4px solid #3b82f6;
+}
+
+.position-group-card.theme-mf {
+  border-left: 4px solid #10b981;
+}
+
+.position-group-card.theme-fw {
+  border-left: 4px solid #ef4444;
+}
+
+/* Position Group Header */
+.position-group-header {
+  padding: 12px 18px;
+  background: linear-gradient(90deg, #090e38 0%, #06092b 100%);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.position-group-title-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.position-group-icon-badge {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.05rem;
+}
+
+.position-group-icon-badge.gk { background-color: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); }
+.position-group-icon-badge.df { background-color: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); }
+.position-group-icon-badge.mf { background-color: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+.position-group-icon-badge.fw { background-color: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+
+.position-group-heading {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.2;
+}
+
+.position-group-sub {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.pos-counter-pill {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  font-weight: 600;
+  background-color: rgba(255, 255, 255, 0.05);
+  padding: 1px 8px;
+  border-radius: 4px;
+}
+
+.btn-group-add-player {
+  background-color: #121844;
+  color: #e2e8f0;
+  border: 1px solid #25317a;
+  padding: 5px 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.btn-group-add-player:hover {
+  background-color: #1d276b;
+  border-color: #38bdf8;
+  color: #ffffff;
+}
+
+/* Position Table Container */
+.position-table-container {
+  overflow-x: auto;
+}
+
+.squad-table th {
+  background-color: #080d30;
+}
+
+.player-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.player-avatar-circle {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  border: 1px solid #334155;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #38bdf8;
+  flex-shrink: 0;
+}
+
+.player-primary-name {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #ffffff;
+}
+
+.nation-tag {
+  background-color: #0f172a;
+  border: 1px solid #334155;
+  color: #cbd5e1;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.val-cell {
+  color: #38bdf8;
+  font-weight: 700;
+}
+
+.wage-cell {
+  color: #e2e8f0;
+  font-weight: 500;
+}
+
+.morale-pill {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.morale-superb { color: #4ade80; }
+.morale-good { color: #facc15; }
+
+/* Condition Meter Wrap */
+.condition-meter-wrap {
+  position: relative;
+  background-color: #0b0f2e;
+  border: 1px solid #1e265c;
+  height: 18px;
+  border-radius: 9999px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 80px;
+}
+
+.condition-meter-bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 9999px;
+  opacity: 0.85;
+}
+
+.condition-text {
+  position: relative;
+  z-index: 2;
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.btn-del-player {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.btn-del-player:hover {
+  color: #ef4444;
+  background-color: rgba(239, 68, 68, 0.12);
+}
+
+/* Empty Position State */
+.empty-position-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 28px 16px;
+  gap: 8px;
+  text-align: center;
+}
+
+.empty-position-state .empty-icon {
+  font-size: 2rem;
+  color: #334155;
+}
+
+.empty-position-state .empty-text {
+  font-size: 0.85rem;
+  color: #64748b;
 }
 
 /* ==========================================================================

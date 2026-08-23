@@ -1,5 +1,6 @@
-﻿// Contracts View - Salary Structure & Expiries
+// Contracts View - Salary Structure & Expiries
 import { store } from '../state.js';
+import { getPositionBadgeClass } from './squad-view.js';
 
 export function renderContractsView(container) {
   container.innerHTML = `
@@ -30,7 +31,7 @@ export function renderContractsView(container) {
             ${store.squad.map(p => `
               <tr>
                 <td style="font-weight: 700; color: white;">${p.name}</td>
-                <td><span class="badge-position pos-mf">${p.pos}</span></td>
+                <td><span class="badge-position ${getPositionBadgeClass(p.pos)}">${p.pos}</span></td>
                 <td style="color: #38bdf8; font-weight: 600;">${p.wage}</td>
                 <td style="font-weight: 600; color: ${p.con === '2027' ? '#ef4444' : '#ffffff'};">${p.con}</td>
                 <td><span style="color: #4ade80;">Active</span></td>
