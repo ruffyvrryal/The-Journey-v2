@@ -518,14 +518,6 @@ export function renderPlayerDetailView(container, playerId) {
     };
   });
 
-  // Back Button Handlers
-  const handleBack = () => {
-    store.clearSelectedPlayer();
-    store.setPage('squad');
-  };
-  const btnBack = container.querySelector('#btn-back-squad');
-  if (btnBack) btnBack.onclick = handleBack;
-
   // Photo Upload Triggering
   const fileInput = container.querySelector('#player-photo-input');
   const btnTrigger = container.querySelector('#btn-trigger-upload');
