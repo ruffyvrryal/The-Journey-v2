@@ -314,6 +314,7 @@ class StateStore {
     this.reconcileSquadShirtNumbers();
 
     this.listeners = [];
+    this._persistTimer = null;
     this.loadPersistedData();
   }
 
@@ -473,14 +474,28 @@ class StateStore {
     };
   }
 
+  // Notify UI listeners immediately (no save — for instant responsiveness)
+  notifyOnly() {
+    this.listeners.forEach(fn => fn(this));
+  }
+
+  // Notify UI + debounced persist (1.5s after last call)
   notify() {
     this.listeners.forEach(fn => fn(this));
-    this.persist();
+    this._schedulePersist();
+  }
+
+  _schedulePersist() {
+    if (this._persistTimer) clearTimeout(this._persistTimer);
+    this._persistTimer = setTimeout(() => {
+      this._persistTimer = null;
+      this.persist();
+    }, 1500);
   }
 
   setPage(page) {
     this.currentPage = page;
-    this.notify();
+    this.notifyOnly(); // Pure navigation — no save needed
   }
 
   // Switch Season (Switches full season dataset)
@@ -505,12 +520,12 @@ class StateStore {
 
   selectPlayer(id) {
     this.selectedPlayerId = id;
-    this.notify();
+    this.notifyOnly(); // Navigation-only — no save
   }
 
   clearSelectedPlayer() {
     this.selectedPlayerId = null;
-    this.notify();
+    this.notifyOnly(); // Navigation-only — no save
   }
 
   updateRecord(w, d, l) {
@@ -781,7 +796,15 @@ class StateStore {
       vaults: this.vaults,
       activeVaultId: this.activeVaultId
     };
-    await firebaseService.saveVaultToCloud(dataToSave);
+    // Always save locally for instant recovery
+    const user = firebaseService.currentUser;
+    if (user) {
+      try {
+        localStorage.setItem(`the_journey_vault_${user.uid}`, JSON.stringify(dataToSave));
+      } catch (e) { /* quota exceeded — skip */ }
+    }
+    // Push to Firestore in background (non-blocking)
+    firebaseService.saveVaultToCloud(dataToSave).catch(() => {});
   }
 
   async loadPersistedData() {

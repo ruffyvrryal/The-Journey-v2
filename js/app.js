@@ -50,24 +50,46 @@ class App {
   }
 
   render() {
-    // If not logged in, enforce login page
+    // Enforce login page if not authenticated
     if (!firebaseService.isLoggedIn() && store.appMode !== 'login') {
       store.appMode = 'login';
     }
 
-    if (store.appMode === 'login') {
-      this.appContainer.innerHTML = '';
-      renderLoginView(this.appContainer);
-    } else if (store.appMode === 'manager_vault') {
-      this.appContainer.innerHTML = '';
-      renderManagerVaultView(this.appContainer);
-    } else {
-      // Main Tablet Experience
+    const mode = store.appMode;
+
+    if (mode === 'login') {
+      if (this._lastAppMode !== 'login') {
+        this.appContainer.innerHTML = '';
+        renderLoginView(this.appContainer);
+        this._lastAppMode = 'login';
+      }
+      return;
+    }
+
+    if (mode === 'manager_vault') {
+      if (this._lastAppMode !== 'manager_vault') {
+        this.appContainer.innerHTML = '';
+        renderManagerVaultView(this.appContainer);
+        this._lastAppMode = 'manager_vault';
+      } else {
+        // Just re-render vault cards without full shell rebuild
+        renderManagerVaultView(this.appContainer);
+      }
+      return;
+    }
+
+    // Main tablet experience
+    if (this._lastAppMode !== 'main_app') {
+      // Full shell build only once on first entry into main_app
       this.renderMainShell();
       this.bindMainEvents();
-      this.updateHeaderUI();
-      this.renderCurrentTabletView();
+      this._lastAppMode = 'main_app';
     }
+
+    // Always update nav active state and header text (cheap DOM ops)
+    this.updateHeaderUI();
+    // Only re-render the canvas content (the inner page)
+    this.renderCurrentTabletView();
   }
 
   renderMainShell() {
@@ -273,11 +295,17 @@ class App {
         seasonMenu.classList.toggle('active');
       };
 
-      document.addEventListener('click', (e) => {
-        if (!seasonBtn.contains(e.target) && !seasonMenu.contains(e.target)) {
-          seasonMenu.classList.remove('active');
-        }
-      });
+      // Only register the outside-click listener once to prevent stacking
+      if (!this._seasonClickHandler) {
+        this._seasonClickHandler = (e) => {
+          const sb = document.getElementById('btn-season-toggle');
+          const sm = document.getElementById('season-dropdown-menu');
+          if (sb && sm && !sb.contains(e.target) && !sm.contains(e.target)) {
+            sm.classList.remove('active');
+          }
+        };
+        document.addEventListener('click', this._seasonClickHandler);
+      }
 
       seasonMenu.querySelectorAll('.season-dropdown-item[data-season]').forEach(item => {
         item.onclick = () => {

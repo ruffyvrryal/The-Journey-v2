@@ -465,6 +465,10 @@
   /* Smooth scrollbar for the screen */
   scrollbar-width: thin;
   scrollbar-color: rgba(0,0,0,0.25) transparent;
+  /* Performance: contain layout/paint to this element */
+  contain: layout style paint;
+  /* Promote scroll to GPU compositor layer */
+  will-change: scroll-position;
 }
 
 .screen-canvas::-webkit-scrollbar {
