@@ -1,6 +1,7 @@
 // Detailed Player Profile & Attributes Editor View
 import { store } from '../state.js';
-import { getPlayerCategory, getPositionBadgeClass } from './squad-view.js';
+import { getPlayerCategory, getPositionBadgeClass, getCountryFlag } from './squad-view.js';
+import { renderCountryOptions } from '../utils/countries.js';
 import { showToast } from './auth-modal.js';
 
 // Default attribute sets if none exist on the player yet
@@ -262,7 +263,9 @@ export function renderPlayerDetailView(container, playerId) {
             </div>
             <div class="bio-tile">
               <span class="bio-lbl">Nationality</span>
-              <input type="text" id="edit-player-nat" class="bio-input" value="${player.nat || 'ENG'}" maxlength="3" />
+              <select id="edit-player-nat" class="bio-select">
+                ${renderCountryOptions(player.nat || 'ENG')}
+              </select>
             </div>
             <div class="bio-tile">
               <span class="bio-lbl">Preferred Foot</span>

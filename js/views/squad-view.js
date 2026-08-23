@@ -30,52 +30,9 @@ export function getPositionBadgeClass(pos) {
   }
 }
 
-// Nationality & Flag Mapping Helper
-export function getCountryFlag(nat) {
-  const code = (nat || 'ENG').toUpperCase().trim();
-  const flagMap = {
-    'ENG': { name: 'England', flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', iso: 'gb-eng' },
-    'ARG': { name: 'Argentina', flag: '🇦🇷', iso: 'ar' },
-    'FRA': { name: 'France', flag: '🇫🇷', iso: 'fr' },
-    'POR': { name: 'Portugal', flag: '🇵🇹', iso: 'pt' },
-    'BRA': { name: 'Brazil', flag: '🇧🇷', iso: 'br' },
-    'NED': { name: 'Netherlands', flag: '🇳🇱', iso: 'nl' },
-    'GER': { name: 'Germany', flag: '🇩🇪', iso: 'de' },
-    'ESP': { name: 'Spain', flag: '🇪🇸', iso: 'es' },
-    'BEL': { name: 'Belgium', flag: '🇧🇪', iso: 'be' },
-    'DEN': { name: 'Denmark', flag: '🇩🇰', iso: 'dk' },
-    'CMR': { name: 'Cameroon', flag: '🇨🇲', iso: 'cm' },
-    'URU': { name: 'Uruguay', flag: '🇺🇾', iso: 'uy' },
-    'ITA': { name: 'Italy', flag: '🇮🇹', iso: 'it' },
-    'NOR': { name: 'Norway', flag: '🇳🇴', iso: 'no' },
-    'SWE': { name: 'Sweden', flag: '🇸🇪', iso: 'se' },
-    'SCO': { name: 'Scotland', flag: '🏴󠁧󠁢󠁳󠁣󠁴󠁿', iso: 'gb-sct' },
-    'WAL': { name: 'Wales', flag: '🏴󠁧󠁢󠁷󠁬󠁳󠁿', iso: 'gb-wls' },
-    'NIR': { name: 'Northern Ireland', flag: '🇬🇧', iso: 'gb-nir' },
-    'IRL': { name: 'Republic of Ireland', flag: '🇮🇪', iso: 'ie' },
-    'CRO': { name: 'Croatia', flag: '🇭🇷', iso: 'hr' },
-    'SRB': { name: 'Serbia', flag: '🇷🇸', iso: 'rs' },
-    'TUR': { name: 'Turkey', flag: '🇹🇷', iso: 'tr' },
-    'USA': { name: 'United States', flag: '🇺🇸', iso: 'us' },
-    'MEX': { name: 'Mexico', flag: '🇲🇽', iso: 'mx' },
-    'JPN': { name: 'Japan', flag: '🇯🇵', iso: 'jp' },
-    'KOR': { name: 'South Korea', flag: '🇰🇷', iso: 'kr' },
-    'NGA': { name: 'Nigeria', flag: '🇳🇬', iso: 'ng' },
-    'GHA': { name: 'Ghana', flag: '🇬🇭', iso: 'gh' },
-    'SEN': { name: 'Senegal', flag: '🇸🇳', iso: 'sn' },
-    'CIV': { name: 'Ivory Coast', flag: '🇨🇮', iso: 'ci' },
-    'MAR': { name: 'Morocco', flag: '🇲🇦', iso: 'ma' },
-    'EGY': { name: 'Egypt', flag: '🇪🇬', iso: 'eg' },
-    'COL': { name: 'Colombia', flag: '🇨🇴', iso: 'co' },
-    'CHI': { name: 'Chile', flag: '🇨🇱', iso: 'cl' },
-    'AUT': { name: 'Austria', flag: '🇦🇹', iso: 'at' },
-    'SUI': { name: 'Switzerland', flag: '🇨🇭', iso: 'ch' },
-    'POL': { name: 'Poland', flag: '🇵🇱', iso: 'pl' },
-    'CZE': { name: 'Czech Republic', flag: '🇨🇿', iso: 'cz' },
-    'UKR': { name: 'Ukraine', flag: '🇺🇦', iso: 'ua' }
-  };
-  return flagMap[code] || { name: code, flag: '🌐', iso: code.toLowerCase() };
-}
+// Nationality & Flag Mapping Helper (from A to Z Country Database)
+export { getCountryFlag, COUNTRIES, renderCountryOptions } from '../utils/countries.js';
+import { getCountryFlag } from '../utils/countries.js';
 
 // Helper to extract shirt number robustly and auto-assign if missing
 export function getPlayerShirtNumber(p, fallbackIndex = 1, pos = 'MC') {
