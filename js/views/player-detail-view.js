@@ -121,7 +121,13 @@ export function renderPlayerDetailView(container, playerId) {
   const pom = player.pom !== undefined ? player.pom : 3;
 
   // Bio defaults
-  const shirtNum = player.number || (isGk ? 1 : player.id <= 11 ? player.id : 23);
+  const shirtNum = (player.num !== undefined && player.num !== null && player.num !== '') 
+    ? Number(player.num) 
+    : (player.number !== undefined && player.number !== null && player.number !== '') 
+      ? Number(player.number) 
+      : (player.shirtNumber !== undefined && player.shirtNumber !== null && player.shirtNumber !== '') 
+        ? Number(player.shirtNumber) 
+        : (isGk ? 1 : player.id <= 11 ? player.id : null);
   const preferredFoot = player.foot || (['DL', 'AML', 'LB', 'LW'].includes(player.pos) ? 'Left' : 'Right');
   const height = player.height || (isGk || ['DC', 'CB', 'ST'].includes(player.pos) ? '188 cm' : '178 cm');
   const weight = player.weight || '74 kg';
@@ -162,8 +168,8 @@ export function renderPlayerDetailView(container, playerId) {
         </button>
 
         <div class="player-top-status-group">
-          <span class="player-status-tag ${posClass}">
-            <i class="fa-solid fa-shirt"></i> #${shirtNum} • ${player.pos}
+          <span class="player-status-tag ${posClass}" id="player-header-shirt-tag">
+            <i class="fa-solid fa-shirt"></i> #${shirtNum ?? '—'} • ${player.pos}
           </span>
           <span class="player-status-tag tag-contract">
             <i class="fa-solid fa-file-signature"></i> Contract Exp: ${player.con}
@@ -605,11 +611,19 @@ export function renderPlayerDetailView(container, playerId) {
       }
     });
 
+    // Collect shirt number
+    const rawNumInput = container.querySelector('#edit-player-num')?.value;
+    const finalNum = (rawNumInput !== '' && rawNumInput !== null && !isNaN(Number(rawNumInput))) 
+      ? Number(rawNumInput) 
+      : null;
+
     const updatedData = {
       name: container.querySelector('#edit-player-name')?.value || player.name,
       pos: container.querySelector('#edit-player-pos')?.value || player.pos,
       rat: Number(container.querySelector('#edit-player-rat')?.value) || player.rat,
-      number: Number(container.querySelector('#edit-player-num')?.value) || shirtNum,
+      num: finalNum,
+      number: finalNum,
+      shirtNumber: finalNum,
       age: Number(container.querySelector('#edit-player-age')?.value) || player.age,
       nat: (container.querySelector('#edit-player-nat')?.value || player.nat || 'ENG').toUpperCase(),
       foot: container.querySelector('#edit-player-foot')?.value || preferredFoot,
@@ -635,8 +649,20 @@ export function renderPlayerDetailView(container, playerId) {
     };
 
     store.updatePlayer(player.id, updatedData);
-    showToast(`Profile & attributes saved for ${updatedData.name}!`);
+    showToast(`Profile & shirt #${finalNum ?? '—'} saved for ${updatedData.name}!`);
   };
+
+  // Live update top header badge when shirt number changes
+  const numInputEl = container.querySelector('#edit-player-num');
+  const topShirtBadge = container.querySelector('#player-header-shirt-tag');
+  if (numInputEl) {
+    numInputEl.oninput = () => {
+      const val = numInputEl.value;
+      if (topShirtBadge) {
+        topShirtBadge.innerHTML = `<i class="fa-solid fa-shirt"></i> #${val || '—'} • ${container.querySelector('#edit-player-pos')?.value || player.pos}`;
+      }
+    };
+  }
 
   const btnSaveTop = container.querySelector('#btn-save-player-profile');
   const btnSaveBottom = container.querySelector('#btn-save-bottom');

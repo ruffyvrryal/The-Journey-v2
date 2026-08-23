@@ -347,7 +347,7 @@ export function openAddPlayerModal(defaultPos = 'MC') {
           <input type="text" id="p-name" class="form-input" placeholder="e.g. Jude Bellingham" required />
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
           <div class="form-group">
             <label class="form-label">Position</label>
             <select id="p-pos" class="form-select">
@@ -355,6 +355,10 @@ export function openAddPlayerModal(defaultPos = 'MC') {
                 <option value="${opt.value}" ${opt.value === defaultPos ? 'selected' : ''}>${opt.label}</option>
               `).join('')}
             </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Shirt #</label>
+            <input type="number" id="p-num" class="form-input" placeholder="e.g. 7" min="1" max="99" />
           </div>
           <div class="form-group">
             <label class="form-label">Age</label>
@@ -387,9 +391,15 @@ export function openAddPlayerModal(defaultPos = 'MC') {
 
   modalRoot.querySelector('#form-add-player').onsubmit = (e) => {
     e.preventDefault();
+    const rawNum = document.getElementById('p-num').value;
+    const shirtNumber = rawNum !== '' && !isNaN(Number(rawNum)) ? Number(rawNum) : null;
+
     store.addPlayer({
       name: document.getElementById('p-name').value,
       pos: document.getElementById('p-pos').value,
+      num: shirtNumber,
+      number: shirtNumber,
+      shirtNumber: shirtNumber,
       age: Number(document.getElementById('p-age').value),
       nat: 'ENG',
       val: document.getElementById('p-val').value,

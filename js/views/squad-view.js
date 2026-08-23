@@ -30,6 +30,18 @@ export function getPositionBadgeClass(pos) {
   }
 }
 
+// Helper to extract shirt number robustly
+export function getPlayerShirtNumber(p) {
+  if (!p) return null;
+  const candidates = [p.num, p.number, p.shirtNumber];
+  for (const c of candidates) {
+    if (c !== undefined && c !== null && c !== '' && !isNaN(Number(c))) {
+      return Number(c);
+    }
+  }
+  return null;
+}
+
 export function renderSquadView(container) {
   // If a player is selected, render their full detailed profile screen
   if (store.selectedPlayerId) {
@@ -39,10 +51,13 @@ export function renderSquadView(container) {
 
   const allPlayers = store.squad || [];
 
-  // Group players by position, then sort by shirt number (no number → end)
+  // Group players by position, then sort by shirt number (unassigned → end)
   const sortByShirt = (arr) => [...arr].sort((a, b) => {
-    const na = Number(a.num) || Number(a.shirtNumber) || 9999;
-    const nb = Number(b.num) || Number(b.shirtNumber) || 9999;
+    const na = getPlayerShirtNumber(a);
+    const nb = getPlayerShirtNumber(b);
+    if (na === null && nb === null) return 0;
+    if (na === null) return 1;
+    if (nb === null) return -1;
     return na - nb;
   });
 
@@ -63,12 +78,12 @@ export function renderSquadView(container) {
     const fitVal = Number(p.fit) || 95;
     const fitColor = fitVal >= 95 ? '#22c55e' : fitVal >= 85 ? '#eab308' : '#ef4444';
     const ratingVal = typeof p.rat === 'number' ? p.rat.toFixed(1) : Number(p.rat || 7.5).toFixed(1);
-    const shirtNum = p.num || p.shirtNumber || null;
+    const shirtNum = getPlayerShirtNumber(p);
 
     return `
       <tr class="squad-player-row clickable-player-row" data-id="${p.id}" title="Click to view & edit detailed profile and upload photo for ${p.name}">
         <td class="shirt-num-cell">
-          ${shirtNum ? `<span class="shirt-number-badge">${shirtNum}</span>` : `<span class="shirt-number-badge shirt-unassigned">—</span>`}
+          ${shirtNum !== null ? `<span class="shirt-number-badge">${shirtNum}</span>` : `<span class="shirt-number-badge shirt-unassigned">—</span>`}
         </td>
         <td class="player-name-cell">
           <div class="player-avatar-circle ${p.photo ? 'has-custom-photo' : ''}">
