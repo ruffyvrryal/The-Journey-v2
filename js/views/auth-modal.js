@@ -620,6 +620,49 @@ export function openAddPlayerModal(defaultPos = 'MC') {
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
           <div class="form-group">
+            <label class="form-label">Nationality</label>
+            <select id="p-nat" class="form-select">
+              <option value="ENG" selected>🏴󠁧󠁢󠁥󠁮󠁧󠁿 ENG - England</option>
+              <option value="ARG">🇦🇷 ARG - Argentina</option>
+              <option value="FRA">🇫🇷 FRA - France</option>
+              <option value="POR">🇵🇹 POR - Portugal</option>
+              <option value="BRA">🇧🇷 BRA - Brazil</option>
+              <option value="ESP">🇪🇸 ESP - Spain</option>
+              <option value="GER">🇩🇪 GER - Germany</option>
+              <option value="NED">🇳🇱 NED - Netherlands</option>
+              <option value="ITA">🇮🇹 ITA - Italy</option>
+              <option value="BEL">🇧🇪 BEL - Belgium</option>
+              <option value="DEN">🇩🇰 DEN - Denmark</option>
+              <option value="CMR">🇨🇲 CMR - Cameroon</option>
+              <option value="URU">🇺🇾 URU - Uruguay</option>
+              <option value="NOR">🇳🇴 NOR - Norway</option>
+              <option value="SWE">🇸🇪 SWE - Sweden</option>
+              <option value="SCO">🏴󠁧󠁢󠁳󠁣󠁴󠁿 SCO - Scotland</option>
+              <option value="WAL">🏴󠁧󠁢󠁷󠁬󠁳󠁿 WAL - Wales</option>
+              <option value="IRL">🇮🇪 IRL - Ireland</option>
+              <option value="CRO">🇭🇷 CRO - Croatia</option>
+              <option value="USA">🇺🇸 USA - United States</option>
+              <option value="MEX">🇲🇽 MEX - Mexico</option>
+              <option value="JPN">🇯🇵 JPN - Japan</option>
+              <option value="KOR">🇰🇷 KOR - South Korea</option>
+              <option value="NGA">🇳🇬 NGA - Nigeria</option>
+              <option value="SEN">🇸🇳 SEN - Senegal</option>
+              <option value="MAR">🇲🇦 MAR - Morocco</option>
+              <option value="COL">🇨🇴 COL - Colombia</option>
+              <option value="AUT">🇦🇹 AUT - Austria</option>
+              <option value="SUI">🇨🇭 SUI - Switzerland</option>
+              <option value="POL">🇵🇱 POL - Poland</option>
+              <option value="TUR">🇹🇷 TUR - Turkey</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Contract Until</label>
+            <input type="text" id="p-con" class="form-input" value="2030" required />
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div class="form-group">
             <label class="form-label">Transfer Value</label>
             <input type="text" id="p-val" class="form-input" value="€80M" required />
           </div>
@@ -664,8 +707,10 @@ export function openAddPlayerModal(defaultPos = 'MC') {
       const shirtNumber = (rawNum !== '' && rawNum !== null && !isNaN(Number(rawNum))) ? Number(rawNum) : null;
       const pos = modalRoot.querySelector('#p-pos')?.value || defaultPos;
       const age = Number(modalRoot.querySelector('#p-age')?.value) || 23;
+      const nat = modalRoot.querySelector('#p-nat')?.value || 'ENG';
       const val = modalRoot.querySelector('#p-val')?.value || '€50M';
       const wage = modalRoot.querySelector('#p-wage')?.value || '€100k/w';
+      const con = modalRoot.querySelector('#p-con')?.value || '2030';
 
       store.addPlayer({
         name,
@@ -674,10 +719,10 @@ export function openAddPlayerModal(defaultPos = 'MC') {
         number: shirtNumber,
         shirtNumber: shirtNumber,
         age,
-        nat: 'ENG',
+        nat,
         val,
         wage,
-        con: '2030',
+        con,
         mor: 'Superb',
         fit: 100,
         rat: 8.0,
@@ -687,7 +732,7 @@ export function openAddPlayerModal(defaultPos = 'MC') {
         cleanSheets: 0
       });
 
-      showToast(`Player signed: ${name} (#${shirtNumber || '—'})!`);
+      showToast(`Player signed: ${name} (${nat}) (#${shirtNumber || '—'})!`);
       closeModal();
     };
   }

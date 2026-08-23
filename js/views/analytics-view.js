@@ -1,6 +1,6 @@
-// Analytics View - Comprehensive Squad Statistical Analytics & Match Breakdown
+// Analytics View - Comprehensive Squad Statistical Analytics, Match Breakdown, & Nationality Diversity
 import { store } from '../state.js';
-import { getPlayerShirtNumber, getPositionBadgeClass, getPlayerCategory } from './squad-view.js';
+import { getPlayerShirtNumber, getPositionBadgeClass, getPlayerCategory, getCountryFlag } from './squad-view.js';
 
 let currentSortField = 'goals';
 let currentSortAsc = false;
@@ -20,6 +20,25 @@ export function renderAnalyticsView(container) {
   const totalYellows = squad.reduce((sum, p) => sum + (Number(p.yel) || 0), 0);
   const totalReds = squad.reduce((sum, p) => sum + (Number(p.red) || 0), 0);
   const cleanSheetsCount = squad.filter(p => p.pos === 'GK').reduce((max, p) => Math.max(max, Number(p.cleanSheets) || 0), 0);
+
+  // Nationality Breakdown Aggregation
+  const natCountMap = {};
+  squad.forEach(p => {
+    const nat = (p.nat || 'ENG').toUpperCase().trim();
+    if (!natCountMap[nat]) {
+      natCountMap[nat] = {
+        code: nat,
+        ...getCountryFlag(nat),
+        count: 0,
+        players: []
+      };
+    }
+    natCountMap[nat].count++;
+    natCountMap[nat].players.push(p.name);
+  });
+
+  const natList = Object.values(natCountMap).sort((a, b) => b.count - a.count);
+  const totalNations = natList.length;
 
   // Identify Top Performers
   const sortedByGoals = [...squad].sort((a, b) => (Number(b.goals) || 0) - (Number(a.goals) || 0));
@@ -41,7 +60,9 @@ export function renderAnalyticsView(container) {
       if (currentPosFilter !== 'all' && getPlayerCategory(p.pos) !== currentPosFilter) return false;
       if (currentSearchQuery) {
         const q = currentSearchQuery.toLowerCase();
-        return p.name.toLowerCase().includes(q) || (p.pos && p.pos.toLowerCase().includes(q));
+        return p.name.toLowerCase().includes(q) || 
+               (p.pos && p.pos.toLowerCase().includes(q)) ||
+               (p.nat && p.nat.toLowerCase().includes(q));
       }
       return true;
     });
@@ -61,6 +82,14 @@ export function renderAnalyticsView(container) {
         valA = a.name.toLowerCase();
         valB = b.name.toLowerCase();
         return currentSortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+      } else if (currentSortField === 'nat') {
+        valA = (a.nat || 'ENG').toLowerCase();
+        valB = (b.nat || 'ENG').toLowerCase();
+        return currentSortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+      } else if (currentSortField === 'pos') {
+        valA = (a.pos || '').toLowerCase();
+        valB = (b.pos || '').toLowerCase();
+        return currentSortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
       } else {
         valA = Number(valA) || 0;
         valB = Number(valB) || 0;
@@ -72,7 +101,7 @@ export function renderAnalyticsView(container) {
     if (list.length === 0) {
       tableBodyEl.innerHTML = `
         <tr>
-          <td colspan="11" style="text-align: center; padding: 24px; color: #64748b;">
+          <td colspan="12" style="text-align: center; padding: 24px; color: #64748b;">
             No players found matching current filters.
           </td>
         </tr>
@@ -82,6 +111,7 @@ export function renderAnalyticsView(container) {
 
     tableBodyEl.innerHTML = list.map((p, idx) => {
       const shirtNum = getPlayerShirtNumber(p);
+      const natInfo = getCountryFlag(p.nat);
       const apps = Number(p.apps) || 0;
       const goals = Number(p.goals) || 0;
       const assists = Number(p.assists) || 0;
@@ -104,6 +134,14 @@ export function renderAnalyticsView(container) {
             <div style="display: flex; align-items: center; gap: 8px;">
               <strong style="color: #f1f5f9;">${p.name}</strong>
             </div>
+          </td>
+
+          <!-- Nationality with Flag -->
+          <td style="text-align: center;">
+            <span class="nation-tag" title="${natInfo.name}">
+              <span style="font-size: 0.95rem; margin-right: 3px;">${natInfo.flag}</span>
+              <span>${p.nat || 'ENG'}</span>
+            </span>
           </td>
 
           <!-- Position -->
@@ -228,6 +266,51 @@ export function renderAnalyticsView(container) {
         </div>
       </div>
 
+      <!-- SQUAD NATIONALITY & CULTURAL DIVERSITY BREAKDOWN SECTION -->
+      <div style="background: #080c30; border: 1px solid #1c2766; border-radius: 12px; padding: 16px; margin-bottom: 16px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+          <div style="display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 0.95rem; color: #ffffff;">
+            <i class="fa-solid fa-earth-americas" style="color: #38bdf8;"></i>
+            <span>Squad Nationality Distribution (${totalNations} Nations Represented)</span>
+          </div>
+          <span style="font-size: 0.75rem; color: #94a3b8; background: #05071c; border: 1px solid #192455; padding: 3px 10px; border-radius: 6px;">
+            ${squad.length} Total Players
+          </span>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px;">
+          ${natList.map(n => {
+            const pct = squad.length > 0 ? ((n.count / squad.length) * 100).toFixed(1) : 0;
+            return `
+              <div style="background: #05071a; border: 1px solid #16204c; border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px;">
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 1.3rem;">${n.flag}</span>
+                    <div>
+                      <strong style="color: #ffffff; font-size: 0.85rem;">${n.name}</strong>
+                      <span style="font-size: 0.7rem; color: #64748b; margin-left: 4px;">(${n.code})</span>
+                    </div>
+                  </div>
+                  <span style="font-weight: 900; color: #38bdf8; font-size: 0.9rem;">${n.count}</span>
+                </div>
+
+                <!-- Progress Bar -->
+                <div style="height: 5px; background: #162048; border-radius: 3px; overflow: hidden; margin-top: 2px;">
+                  <div style="height: 100%; width: ${pct}%; background: linear-gradient(90deg, #38bdf8, #22c55e); border-radius: 3px;"></div>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: #94a3b8;">
+                  <span>${pct}% of Squad</span>
+                  <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 110px;" title="${n.players.join(', ')}">
+                    ${n.players.join(', ')}
+                  </span>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+
       <!-- Squad Statistical Analytics Table Container -->
       <div style="background: #080c30; border: 1px solid #1c2766; border-radius: 12px; padding: 14px; overflow: hidden; display: flex; flex-direction: column; gap: 12px;">
         <!-- Filters and Search Bar -->
@@ -247,7 +330,7 @@ export function renderAnalyticsView(container) {
             <input 
               type="text" 
               id="analytics-search-input" 
-              placeholder="Search squad player..." 
+              placeholder="Search by name, nat, pos..." 
               value="${currentSearchQuery}"
               style="width: 100%; background: #04061a; border: 1px solid #1c275a; border-radius: 6px; padding: 6px 10px 6px 30px; font-size: 0.8rem; color: #ffffff; outline: none;"
             />
@@ -262,8 +345,11 @@ export function renderAnalyticsView(container) {
                 <th class="sortable-th" data-sort="num" style="width: 48px; text-align: center; cursor: pointer;">
                   # <span class="sort-icon">${currentSortField === 'num' ? (currentSortAsc ? '▲' : '▼') : ''}</span>
                 </th>
-                <th class="sortable-th" data-sort="name" style="min-width: 160px; cursor: pointer;">
+                <th class="sortable-th" data-sort="name" style="min-width: 150px; cursor: pointer;">
                   Player Name <span class="sort-icon">${currentSortField === 'name' ? (currentSortAsc ? '▲' : '▼') : ''}</span>
+                </th>
+                <th class="sortable-th" data-sort="nat" style="width: 75px; text-align: center; cursor: pointer;" title="Nationality">
+                  Nat <span class="sort-icon">${currentSortField === 'nat' ? (currentSortAsc ? '▲' : '▼') : ''}</span>
                 </th>
                 <th class="sortable-th" data-sort="pos" style="width: 65px; text-align: center; cursor: pointer;">
                   Pos <span class="sort-icon">${currentSortField === 'pos' ? (currentSortAsc ? '▲' : '▼') : ''}</span>

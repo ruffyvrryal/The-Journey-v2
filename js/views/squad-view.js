@@ -30,6 +30,53 @@ export function getPositionBadgeClass(pos) {
   }
 }
 
+// Nationality & Flag Mapping Helper
+export function getCountryFlag(nat) {
+  const code = (nat || 'ENG').toUpperCase().trim();
+  const flagMap = {
+    'ENG': { name: 'England', flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', iso: 'gb-eng' },
+    'ARG': { name: 'Argentina', flag: '🇦🇷', iso: 'ar' },
+    'FRA': { name: 'France', flag: '🇫🇷', iso: 'fr' },
+    'POR': { name: 'Portugal', flag: '🇵🇹', iso: 'pt' },
+    'BRA': { name: 'Brazil', flag: '🇧🇷', iso: 'br' },
+    'NED': { name: 'Netherlands', flag: '🇳🇱', iso: 'nl' },
+    'GER': { name: 'Germany', flag: '🇩🇪', iso: 'de' },
+    'ESP': { name: 'Spain', flag: '🇪🇸', iso: 'es' },
+    'BEL': { name: 'Belgium', flag: '🇧🇪', iso: 'be' },
+    'DEN': { name: 'Denmark', flag: '🇩🇰', iso: 'dk' },
+    'CMR': { name: 'Cameroon', flag: '🇨🇲', iso: 'cm' },
+    'URU': { name: 'Uruguay', flag: '🇺🇾', iso: 'uy' },
+    'ITA': { name: 'Italy', flag: '🇮🇹', iso: 'it' },
+    'NOR': { name: 'Norway', flag: '🇳🇴', iso: 'no' },
+    'SWE': { name: 'Sweden', flag: '🇸🇪', iso: 'se' },
+    'SCO': { name: 'Scotland', flag: '🏴󠁧󠁢󠁳󠁣󠁴󠁿', iso: 'gb-sct' },
+    'WAL': { name: 'Wales', flag: '🏴󠁧󠁢󠁷󠁬󠁳󠁿', iso: 'gb-wls' },
+    'NIR': { name: 'Northern Ireland', flag: '🇬🇧', iso: 'gb-nir' },
+    'IRL': { name: 'Republic of Ireland', flag: '🇮🇪', iso: 'ie' },
+    'CRO': { name: 'Croatia', flag: '🇭🇷', iso: 'hr' },
+    'SRB': { name: 'Serbia', flag: '🇷🇸', iso: 'rs' },
+    'TUR': { name: 'Turkey', flag: '🇹🇷', iso: 'tr' },
+    'USA': { name: 'United States', flag: '🇺🇸', iso: 'us' },
+    'MEX': { name: 'Mexico', flag: '🇲🇽', iso: 'mx' },
+    'JPN': { name: 'Japan', flag: '🇯🇵', iso: 'jp' },
+    'KOR': { name: 'South Korea', flag: '🇰🇷', iso: 'kr' },
+    'NGA': { name: 'Nigeria', flag: '🇳🇬', iso: 'ng' },
+    'GHA': { name: 'Ghana', flag: '🇬🇭', iso: 'gh' },
+    'SEN': { name: 'Senegal', flag: '🇸🇳', iso: 'sn' },
+    'CIV': { name: 'Ivory Coast', flag: '🇨🇮', iso: 'ci' },
+    'MAR': { name: 'Morocco', flag: '🇲🇦', iso: 'ma' },
+    'EGY': { name: 'Egypt', flag: '🇪🇬', iso: 'eg' },
+    'COL': { name: 'Colombia', flag: '🇨🇴', iso: 'co' },
+    'CHI': { name: 'Chile', flag: '🇨🇱', iso: 'cl' },
+    'AUT': { name: 'Austria', flag: '🇦🇹', iso: 'at' },
+    'SUI': { name: 'Switzerland', flag: '🇨🇭', iso: 'ch' },
+    'POL': { name: 'Poland', flag: '🇵🇱', iso: 'pl' },
+    'CZE': { name: 'Czech Republic', flag: '🇨🇿', iso: 'cz' },
+    'UKR': { name: 'Ukraine', flag: '🇺🇦', iso: 'ua' }
+  };
+  return flagMap[code] || { name: code, flag: '🌐', iso: code.toLowerCase() };
+}
+
 // Helper to extract shirt number robustly and auto-assign if missing
 export function getPlayerShirtNumber(p, fallbackIndex = 1, pos = 'MC') {
   if (!p) return 1;
@@ -88,6 +135,7 @@ export function renderSquadView(container) {
     const fitColor = fitVal >= 95 ? '#22c55e' : fitVal >= 85 ? '#eab308' : '#ef4444';
     const ratingVal = typeof p.rat === 'number' ? p.rat.toFixed(1) : Number(p.rat || 7.5).toFixed(1);
     const shirtNum = getPlayerShirtNumber(p, idx + 1, p.pos);
+    const natInfo = getCountryFlag(p.nat);
 
     return `
       <tr class="squad-player-row clickable-player-row" data-id="${p.id}" title="Click to view & edit detailed profile and upload photo for ${p.name}">
@@ -112,7 +160,10 @@ export function renderSquadView(container) {
         </td>
         <td style="text-align: center; font-weight: 600;">${p.age}</td>
         <td style="text-align: center;">
-          <span class="nation-tag">${p.nat || 'ENG'}</span>
+          <span class="nation-tag" title="${natInfo.name}">
+            <span style="font-size: 1rem; margin-right: 4px;">${natInfo.flag}</span>
+            <span>${p.nat || 'ENG'}</span>
+          </span>
         </td>
         <td class="val-cell">${p.val}</td>
         <td class="wage-cell">${p.wage}</td>
