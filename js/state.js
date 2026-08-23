@@ -280,6 +280,7 @@ class StateStore {
 
     // Multi-Season Isolated Datasets
     this.seasonData = createInitialSeasonData();
+    this.reconcileSquadShirtNumbers();
 
     this.listeners = [];
     this.loadPersistedData();
@@ -493,6 +494,45 @@ class StateStore {
     this.notify();
   }
 
+  // Reconcile and backfill shirt numbers if loading legacy cached data
+  reconcileSquadShirtNumbers() {
+    const defaultInitial = createInitialSeasonData();
+    Object.keys(this.seasonData).forEach(sKey => {
+      const sData = this.seasonData[sKey];
+      if (sData && Array.isArray(sData.squad)) {
+        const defaultSquad = defaultInitial[sKey]?.squad || defaultInitial['2026/27'].squad;
+        sData.squad.forEach((p, idx) => {
+          const existingNum = (p.num !== undefined && p.num !== null && p.num !== '') 
+            ? Number(p.num) 
+            : (p.number !== undefined && p.number !== null && p.number !== '') 
+              ? Number(p.number) 
+              : (p.shirtNumber !== undefined && p.shirtNumber !== null && p.shirtNumber !== '') 
+                ? Number(p.shirtNumber) 
+                : null;
+
+          if (existingNum !== null) {
+            p.num = existingNum;
+            p.number = existingNum;
+            p.shirtNumber = existingNum;
+          } else {
+            // Find in default template
+            const match = defaultSquad.find(dp => dp.id === p.id || (dp.name && p.name && dp.name.toLowerCase() === p.name.toLowerCase()));
+            if (match && match.num) {
+              p.num = Number(match.num);
+              p.number = Number(match.num);
+              p.shirtNumber = Number(match.num);
+            } else {
+              const fallback = p.pos === 'GK' ? 1 : (idx + 2);
+              p.num = fallback;
+              p.number = fallback;
+              p.shirtNumber = fallback;
+            }
+          }
+        });
+      }
+    });
+  }
+
   async persist() {
     const dataToSave = {
       currentSeason: this.currentSeason,
@@ -512,8 +552,9 @@ class StateStore {
       if (data.managerName) this.managerName = data.managerName;
       if (data.clubName) this.clubName = data.clubName;
       if (data.seasonData) this.seasonData = data.seasonData;
-      this.notify();
     }
+    this.reconcileSquadShirtNumbers();
+    this.notify();
   }
 }
 

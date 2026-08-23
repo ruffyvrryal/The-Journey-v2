@@ -254,7 +254,7 @@ export function renderPlayerDetailView(container, playerId) {
           <div class="player-bio-grid">
             <div class="bio-tile">
               <span class="bio-lbl">Shirt #</span>
-              <input type="number" id="edit-player-num" class="bio-input" value="${shirtNum}" min="1" max="99" />
+              <input type="number" id="edit-player-num" class="bio-input" value="${shirtNum !== null && shirtNum !== undefined ? shirtNum : ''}" min="1" max="99" placeholder="e.g. 7" />
             </div>
             <div class="bio-tile">
               <span class="bio-lbl">Age</span>
@@ -601,7 +601,7 @@ export function renderPlayerDetailView(container, playerId) {
   }
 
   // Handle Save Profile
-  const handleSaveProfile = () => {
+  const handleSaveProfile = (showNotification = true) => {
     // Collect all attributes
     const updatedAttrs = {};
     container.querySelectorAll('.attr-num-input').forEach(inp => {
@@ -613,7 +613,7 @@ export function renderPlayerDetailView(container, playerId) {
 
     // Collect shirt number
     const rawNumInput = container.querySelector('#edit-player-num')?.value;
-    const finalNum = (rawNumInput !== '' && rawNumInput !== null && !isNaN(Number(rawNumInput))) 
+    const finalNum = (rawNumInput !== '' && rawNumInput !== null && rawNumInput !== undefined && !isNaN(Number(rawNumInput))) 
       ? Number(rawNumInput) 
       : null;
 
@@ -649,25 +649,39 @@ export function renderPlayerDetailView(container, playerId) {
     };
 
     store.updatePlayer(player.id, updatedData);
-    showToast(`Profile & shirt #${finalNum ?? '—'} saved for ${updatedData.name}!`);
+    if (showNotification) {
+      showToast(`Profile & shirt #${finalNum !== null ? finalNum : '—'} saved for ${updatedData.name}!`);
+    }
   };
 
-  // Live update top header badge when shirt number changes
+  // Back Button Handler (auto-saves any entered changes before returning)
+  const handleBack = () => {
+    handleSaveProfile(false);
+    store.clearSelectedPlayer();
+    store.setPage('squad');
+  };
+  const btnBack = container.querySelector('#btn-back-squad');
+  if (btnBack) btnBack.onclick = handleBack;
+
+  // Live update top header badge and player object when shirt number changes
   const numInputEl = container.querySelector('#edit-player-num');
   const topShirtBadge = container.querySelector('#player-header-shirt-tag');
   if (numInputEl) {
-    numInputEl.oninput = () => {
-      const val = numInputEl.value;
+    const syncLiveShirt = () => {
+      const val = numInputEl.value.trim();
+      const n = (val !== '' && !isNaN(Number(val))) ? Number(val) : null;
       if (topShirtBadge) {
-        topShirtBadge.innerHTML = `<i class="fa-solid fa-shirt"></i> #${val || '—'} • ${container.querySelector('#edit-player-pos')?.value || player.pos}`;
+        topShirtBadge.innerHTML = `<i class="fa-solid fa-shirt"></i> #${n !== null ? n : '—'} • ${container.querySelector('#edit-player-pos')?.value || player.pos}`;
       }
     };
+    numInputEl.oninput = syncLiveShirt;
+    numInputEl.onchange = syncLiveShirt;
   }
 
   const btnSaveTop = container.querySelector('#btn-save-player-profile');
   const btnSaveBottom = container.querySelector('#btn-save-bottom');
-  if (btnSaveTop) btnSaveTop.onclick = handleSaveProfile;
-  if (btnSaveBottom) btnSaveBottom.onclick = handleSaveProfile;
+  if (btnSaveTop) btnSaveTop.onclick = () => handleSaveProfile(true);
+  if (btnSaveBottom) btnSaveBottom.onclick = () => handleSaveProfile(true);
 
   // Handle Release Player
   const btnRelease = container.querySelector('#btn-release-player');
