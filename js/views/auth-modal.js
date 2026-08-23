@@ -255,6 +255,13 @@ export function openAddMatchModal(matchToEdit = null) {
   const defaultAScore = matchToEdit?.awayScore !== undefined ? matchToEdit.awayScore : 0;
   const defaultComp = matchToEdit?.competition || store.leagueName || 'Premier League';
 
+  // Selected lineup set (defaults to top 11 squad players or match lineup)
+  const selectedLineup = new Set(matchToEdit?.lineup ? matchToEdit.lineup.map(Number) : squad.slice(0, 11).map(p => p.id));
+  
+  // Goalscorers & Assisters state
+  let goalscorersList = matchToEdit?.goalscorers ? JSON.parse(JSON.stringify(matchToEdit.goalscorers)) : [];
+  let assistersList = matchToEdit?.assisters ? JSON.parse(JSON.stringify(matchToEdit.assisters)) : [];
+
   // Dynamic state values
   let curDate = defaultDate;
   let curGw = defaultGw;
