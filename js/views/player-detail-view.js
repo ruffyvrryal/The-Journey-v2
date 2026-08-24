@@ -5,6 +5,7 @@ import { renderCountryOptions } from '../utils/countries.js';
 import { showToast } from './auth-modal.js';
 
 // Default attribute sets if none exist on the player yet (1-99 scale)
+// Default attribute sets if none exist on the player yet (1-99 scale)
 export function getDefaultAttributes(pos, rating = 8.0) {
   const isGk = getPlayerCategory(pos) === 'GK';
   // Map 1-10 FM rating to 1-99 base attribute value
@@ -12,82 +13,91 @@ export function getDefaultAttributes(pos, rating = 8.0) {
 
   if (isGk) {
     return {
-      // Goalkeeping
-      aerialReach: baseVal,
+      // Goalkeeping (13)
+      aerialReach: baseVal >= 70 ? baseVal : 70,
       commandOfArea: Math.max(1, baseVal - 5),
-      communication: Math.max(1, baseVal - 5),
-      eccentricity: 45,
-      handling: baseVal,
-      kicking: Math.max(1, baseVal - 10),
-      oneOnOnes: baseVal,
-      reflexes: Math.min(99, baseVal + 5),
-      rushingOut: Math.max(1, baseVal - 10),
-      punching: Math.max(1, baseVal - 10),
-      throwing: Math.max(1, baseVal - 5),
-      // Mental
-      anticipation: baseVal,
-      bravery: baseVal,
-      composure: Math.max(1, baseVal - 5),
-      concentration: baseVal,
-      decisions: Math.max(1, baseVal - 5),
-      determination: Math.min(99, baseVal + 5),
-      leadership: Math.max(1, baseVal - 10),
-      positioning: baseVal,
-      teamwork: Math.max(1, baseVal - 5),
-      vision: Math.max(1, baseVal - 15),
-      // Physical
-      acceleration: Math.max(1, baseVal - 15),
-      agility: baseVal,
-      balance: Math.max(1, baseVal - 5),
-      jumpingReach: baseVal,
-      naturalFitness: 72,
-      pace: Math.max(1, baseVal - 15),
-      stamina: Math.max(1, baseVal - 10),
-      strength: baseVal
+      communication: Math.max(1, baseVal - 15),
+      eccentricity: 25,
+      firstTouch: 50,
+      handling: baseVal >= 70 ? baseVal : 70,
+      kicking: Math.max(1, baseVal - 5),
+      oneOnOnes: baseVal >= 75 ? baseVal : 75,
+      passing: 55,
+      punching: 90,
+      reflexes: Math.min(99, Math.max(70, baseVal)),
+      rushingOut: 55,
+      throwing: 55,
+      // Mental (14)
+      aggression: 35,
+      anticipation: Math.max(65, baseVal),
+      bravery: 60,
+      composure: 50,
+      concentration: 50,
+      decisions: 60,
+      determination: Math.min(99, Math.max(75, baseVal + 5)),
+      flair: 15,
+      leadership: 35,
+      offTheBall: 35,
+      positioning: Math.min(99, Math.max(75, baseVal)),
+      teamwork: 60,
+      vision: 45,
+      workRate: 55,
+      // Physical (8)
+      acceleration: 45,
+      agility: Math.max(70, baseVal),
+      balance: 60,
+      jumpingReach: Math.min(99, Math.max(85, baseVal + 10)),
+      naturalFitness: 65,
+      pace: 45,
+      stamina: 65,
+      strength: Math.max(75, baseVal),
+      // Technical (1)
+      technique: 70
     };
   }
 
   // Outfield player defaults
   return {
-    // Technical
-    corners: 54,
-    crossing: 59,
-    dribbling: baseVal,
-    finishing: pos === 'ST' || pos === 'AF' || pos === 'CF' ? Math.min(99, baseVal + 5) : 54,
-    firstTouch: baseVal,
-    freeKicks: 59,
-    heading: ['DC', 'CB', 'ST'].includes(pos) ? baseVal : 50,
-    longShots: 59,
-    longThrows: 36,
-    marking: ['DC', 'DL', 'DR', 'CB', 'LB', 'RB', 'DM'].includes(pos) ? baseVal : 36,
-    passing: baseVal,
-    penaltyTaking: 63,
-    tackling: ['DC', 'DL', 'DR', 'CB', 'LB', 'RB', 'DM'].includes(pos) ? baseVal : 45,
-    technique: baseVal,
-    // Mental
-    aggression: 59,
-    anticipation: baseVal,
-    bravery: Math.max(1, baseVal - 5),
-    composure: baseVal,
-    concentration: Math.max(1, baseVal - 5),
-    decisions: baseVal,
-    determination: Math.min(99, baseVal + 9),
-    flair: ['AML', 'AMR', 'AMC', 'ST'].includes(pos) ? Math.min(99, baseVal + 5) : 54,
-    leadership: 54,
-    offTheBall: baseVal,
-    positioning: ['DC', 'DL', 'DR', 'DM', 'MC'].includes(pos) ? baseVal : 50,
-    teamwork: baseVal,
-    vision: ['AMC', 'MC', 'AML', 'AMR'].includes(pos) ? baseVal : 54,
-    workRate: baseVal,
-    // Physical
-    acceleration: Math.min(99, baseVal + 5),
-    agility: baseVal,
-    balance: baseVal,
-    jumpingReach: ['DC', 'CB', 'ST'].includes(pos) ? baseVal : 50,
-    naturalFitness: 72,
-    pace: Math.min(99, baseVal + 5),
-    stamina: baseVal,
-    strength: baseVal
+    // Technical (10)
+    crossing: ['AML', 'AMR', 'DL', 'DR'].includes(pos) ? baseVal : 65,
+    dribbling: ['AML', 'AMR', 'AMC', 'ST'].includes(pos) ? Math.min(99, baseVal + 10) : 90,
+    finishing: ['ST', 'AF', 'CF', 'AML', 'AMR'].includes(pos) ? Math.min(99, baseVal + 10) : 90,
+    firstTouch: baseVal >= 80 ? baseVal : 90,
+    heading: ['DC', 'CB', 'ST'].includes(pos) ? baseVal : 45,
+    longShots: ['AMC', 'MC', 'AML', 'AMR'].includes(pos) ? baseVal : 75,
+    marking: ['DC', 'DL', 'DR', 'DM'].includes(pos) ? baseVal : 20,
+    passing: ['MC', 'AMC', 'DM'].includes(pos) ? baseVal : 75,
+    tackling: ['DC', 'DL', 'DR', 'DM', 'MC'].includes(pos) ? baseVal : 20,
+    technique: baseVal >= 80 ? baseVal : 85,
+    // Mental (14)
+    aggression: ['DC', 'DM', 'MC'].includes(pos) ? 65 : 30,
+    anticipation: baseVal >= 80 ? baseVal : 85,
+    bravery: 60,
+    composure: baseVal >= 80 ? baseVal : 90,
+    concentration: 80,
+    decisions: 80,
+    determination: Math.min(99, baseVal >= 80 ? baseVal : 90),
+    flair: ['AML', 'AMR', 'AMC', 'ST'].includes(pos) ? 90 : 80,
+    leadership: 65,
+    offTheBall: baseVal >= 80 ? baseVal : 85,
+    positioning: ['DC', 'DL', 'DR', 'DM', 'MC'].includes(pos) ? baseVal : 20,
+    teamwork: 50,
+    vision: ['AMC', 'MC', 'AML', 'AMR'].includes(pos) ? baseVal : 80,
+    workRate: 65,
+    // Physical (8)
+    acceleration: ['AML', 'AMR', 'ST', 'DL', 'DR'].includes(pos) ? 99 : 85,
+    agility: 80,
+    balance: 80,
+    jumpingReach: ['DC', 'CB', 'ST'].includes(pos) ? baseVal : 40,
+    naturalFitness: 75,
+    pace: ['AML', 'AMR', 'ST', 'DL', 'DR'].includes(pos) ? 95 : 85,
+    stamina: 75,
+    strength: ['DC', 'DM', 'ST'].includes(pos) ? baseVal : 60,
+    // Set Pieces (4)
+    corners: 65,
+    freeKicks: 55,
+    longThrows: 15,
+    penaltyTaking: 90
   };
 }
 
@@ -103,10 +113,10 @@ export function calcRatingFromAttrs(attrsObj) {
 
 export function getAttributeColor(val) {
   const num = Number(val) || 0;
-  if (num >= 80) return 'attr-elite'; // 80-99 Gold/Yellow — Elite
-  if (num >= 65) return 'attr-great'; // 65-79 Green — Great
-  if (num >= 45) return 'attr-good';  // 45-64 Blue — Good
-  return 'attr-poor';                 // 1-44 Gray — Developing
+  if (num >= 80) return 'attr-elite'; // 80-99 Green — Elite
+  if (num >= 65) return 'attr-great'; // 65-79 Yellow/Gold — Great
+  if (num >= 45) return 'attr-good';  // 45-64 Light Blue/Cyan — Good
+  return 'attr-poor';                 // 1-44 Muted Gray — Developing
 }
 
 export function renderPlayerDetailView(container, playerId) {
@@ -383,124 +393,139 @@ export function renderPlayerDetailView(container, playerId) {
       <!-- FM ATTRIBUTES MATRIX (1-99 SCALE) -->
       <div class="player-attributes-card">
         <div class="attributes-card-header">
-          <div class="attr-header-title">
-            <i class="fa-solid fa-sliders" style="color: var(--brand-yellow);"></i>
-            Player Attributes (1–99 Scale)
-          </div>
-          <div class="attr-legend-bar">
-            <span class="legend-item"><span class="legend-dot dot-elite"></span> 80–99 Elite</span>
-            <span class="legend-item"><span class="legend-dot dot-great"></span> 65–79 Great</span>
-            <span class="legend-item"><span class="legend-dot dot-good"></span> 45–64 Good</span>
-            <span class="legend-item"><span class="legend-dot dot-poor"></span> 1–44 Developing</span>
-          </div>
+          <div class="attr-header-title">Attributes</div>
+          <div class="attr-scale-badge">1–99 scale</div>
         </div>
 
         <div class="attributes-columns-grid ${isGk ? 'grid-gk' : 'grid-outfield'}">
           ${isGk ? `
-            <!-- GOALKEEPING COLUMN -->
+            <!-- COLUMN 1: GOALKEEPING (13 Attributes) -->
             <div class="attr-col">
               <div class="attr-col-heading">Goalkeeping</div>
               <div class="attr-list">
-                ${renderAttrInput('aerialReach', 'Aerial Reach', attrs.aerialReach || 15)}
-                ${renderAttrInput('commandOfArea', 'Command of Area', attrs.commandOfArea || 14)}
-                ${renderAttrInput('communication', 'Communication', attrs.communication || 14)}
-                ${renderAttrInput('eccentricity', 'Eccentricity', attrs.eccentricity || 10)}
-                ${renderAttrInput('handling', 'Handling', attrs.handling || 16)}
-                ${renderAttrInput('kicking', 'Kicking', attrs.kicking || 15)}
-                ${renderAttrInput('oneOnOnes', 'One on Ones', attrs.oneOnOnes || 16)}
-                ${renderAttrInput('reflexes', 'Reflexes', attrs.reflexes || 17)}
-                ${renderAttrInput('rushingOut', 'Rushing Out', attrs.rushingOut || 13)}
-                ${renderAttrInput('punching', 'Tendency to Punch', attrs.punching || 12)}
-                ${renderAttrInput('throwing', 'Throwing', attrs.throwing || 14)}
+                ${renderAttrInput('aerialReach', 'Aerial Reach', attrs.aerialReach !== undefined ? attrs.aerialReach : 70)}
+                ${renderAttrInput('commandOfArea', 'Command of Area', attrs.commandOfArea !== undefined ? attrs.commandOfArea : 65)}
+                ${renderAttrInput('communication', 'Communication', attrs.communication !== undefined ? attrs.communication : 50)}
+                ${renderAttrInput('eccentricity', 'Eccentricity', attrs.eccentricity !== undefined ? attrs.eccentricity : 25)}
+                ${renderAttrInput('firstTouch', 'First Touch', attrs.firstTouch !== undefined ? attrs.firstTouch : 50)}
+                ${renderAttrInput('handling', 'Handling', attrs.handling !== undefined ? attrs.handling : 70)}
+                ${renderAttrInput('kicking', 'Kicking', attrs.kicking !== undefined ? attrs.kicking : 70)}
+                ${renderAttrInput('oneOnOnes', 'One on Ones', attrs.oneOnOnes !== undefined ? attrs.oneOnOnes : 75)}
+                ${renderAttrInput('passing', 'Passing', attrs.passing !== undefined ? attrs.passing : 55)}
+                ${renderAttrInput('punching', 'Punching (Tendency)', attrs.punching !== undefined ? attrs.punching : 90)}
+                ${renderAttrInput('reflexes', 'Reflexes', attrs.reflexes !== undefined ? attrs.reflexes : 70)}
+                ${renderAttrInput('rushingOut', 'Rushing Out (Tendency)', attrs.rushingOut !== undefined ? attrs.rushingOut : 55)}
+                ${renderAttrInput('throwing', 'Throwing', attrs.throwing !== undefined ? attrs.throwing : 55)}
               </div>
             </div>
 
-            <!-- MENTAL COLUMN (GK) -->
+            <!-- COLUMN 2: MENTAL (14 Attributes - GK) -->
             <div class="attr-col">
               <div class="attr-col-heading">Mental</div>
               <div class="attr-list">
-                ${renderAttrInput('anticipation', 'Anticipation', attrs.anticipation || 15)}
-                ${renderAttrInput('bravery', 'Bravery', attrs.bravery || 16)}
-                ${renderAttrInput('composure', 'Composure', attrs.composure || 15)}
-                ${renderAttrInput('concentration', 'Concentration', attrs.concentration || 16)}
-                ${renderAttrInput('decisions', 'Decisions', attrs.decisions || 14)}
-                ${renderAttrInput('determination', 'Determination', attrs.determination || 17)}
-                ${renderAttrInput('leadership', 'Leadership', attrs.leadership || 13)}
-                ${renderAttrInput('positioning', 'Positioning', attrs.positioning || 16)}
-                ${renderAttrInput('teamwork', 'Teamwork', attrs.teamwork || 14)}
-                ${renderAttrInput('vision', 'Vision', attrs.vision || 12)}
+                ${renderAttrInput('aggression', 'Aggression', attrs.aggression !== undefined ? attrs.aggression : 35)}
+                ${renderAttrInput('anticipation', 'Anticipation', attrs.anticipation !== undefined ? attrs.anticipation : 65)}
+                ${renderAttrInput('bravery', 'Bravery', attrs.bravery !== undefined ? attrs.bravery : 60)}
+                ${renderAttrInput('composure', 'Composure', attrs.composure !== undefined ? attrs.composure : 50)}
+                ${renderAttrInput('concentration', 'Concentration', attrs.concentration !== undefined ? attrs.concentration : 50)}
+                ${renderAttrInput('decisions', 'Decisions', attrs.decisions !== undefined ? attrs.decisions : 60)}
+                ${renderAttrInput('determination', 'Determination', attrs.determination !== undefined ? attrs.determination : 75)}
+                ${renderAttrInput('flair', 'Flair', attrs.flair !== undefined ? attrs.flair : 15)}
+                ${renderAttrInput('leadership', 'Leadership', attrs.leadership !== undefined ? attrs.leadership : 35)}
+                ${renderAttrInput('offTheBall', 'Off the Ball', attrs.offTheBall !== undefined ? attrs.offTheBall : 35)}
+                ${renderAttrInput('positioning', 'Positioning', attrs.positioning !== undefined ? attrs.positioning : 75)}
+                ${renderAttrInput('teamwork', 'Teamwork', attrs.teamwork !== undefined ? attrs.teamwork : 60)}
+                ${renderAttrInput('vision', 'Vision', attrs.vision !== undefined ? attrs.vision : 45)}
+                ${renderAttrInput('workRate', 'Work Rate', attrs.workRate !== undefined ? attrs.workRate : 55)}
               </div>
             </div>
 
-            <!-- PHYSICAL COLUMN -->
-            <div class="attr-col">
-              <div class="attr-col-heading">Physical</div>
-              <div class="attr-list">
-                ${renderAttrInput('acceleration', 'Acceleration', attrs.acceleration || 12)}
-                ${renderAttrInput('agility', 'Agility', attrs.agility || 16)}
-                ${renderAttrInput('balance', 'Balance', attrs.balance || 14)}
-                ${renderAttrInput('jumpingReach', 'Jumping Reach', attrs.jumpingReach || 16)}
-                ${renderAttrInput('naturalFitness', 'Natural Fitness', attrs.naturalFitness || 16)}
-                ${renderAttrInput('pace', 'Pace', attrs.pace || 12)}
-                ${renderAttrInput('stamina', 'Stamina', attrs.stamina || 13)}
-                ${renderAttrInput('strength', 'Strength', attrs.strength || 15)}
+            <!-- COLUMN 3: PHYSICAL + TECHNICAL (GK) -->
+            <div class="attr-col-stacked">
+              <div class="attr-col">
+                <div class="attr-col-heading">Physical</div>
+                <div class="attr-list">
+                  ${renderAttrInput('acceleration', 'Acceleration', attrs.acceleration !== undefined ? attrs.acceleration : 45)}
+                  ${renderAttrInput('agility', 'Agility', attrs.agility !== undefined ? attrs.agility : 70)}
+                  ${renderAttrInput('balance', 'Balance', attrs.balance !== undefined ? attrs.balance : 60)}
+                  ${renderAttrInput('jumpingReach', 'Jumping Reach', attrs.jumpingReach !== undefined ? attrs.jumpingReach : 85)}
+                  ${renderAttrInput('naturalFitness', 'Natural Fitness', attrs.naturalFitness !== undefined ? attrs.naturalFitness : 65)}
+                  ${renderAttrInput('pace', 'Pace', attrs.pace !== undefined ? attrs.pace : 45)}
+                  ${renderAttrInput('stamina', 'Stamina', attrs.stamina !== undefined ? attrs.stamina : 65)}
+                  ${renderAttrInput('strength', 'Strength', attrs.strength !== undefined ? attrs.strength : 75)}
+                </div>
+              </div>
+
+              <div class="attr-col">
+                <div class="attr-col-heading">Technical</div>
+                <div class="attr-list">
+                  ${renderAttrInput('technique', 'Technique', attrs.technique !== undefined ? attrs.technique : 70)}
+                </div>
               </div>
             </div>
           ` : `
-            <!-- TECHNICAL COLUMN -->
+            <!-- COLUMN 1: TECHNICAL (10 Attributes - OUTFIELD) -->
             <div class="attr-col">
               <div class="attr-col-heading">Technical</div>
               <div class="attr-list">
-                ${renderAttrInput('corners', 'Corners', attrs.corners || 12)}
-                ${renderAttrInput('crossing', 'Crossing', attrs.crossing || 13)}
-                ${renderAttrInput('dribbling', 'Dribbling', attrs.dribbling || 15)}
-                ${renderAttrInput('finishing', 'Finishing', attrs.finishing || 14)}
-                ${renderAttrInput('firstTouch', 'First Touch', attrs.firstTouch || 16)}
-                ${renderAttrInput('freeKicks', 'Free Kick Taking', attrs.freeKicks || 13)}
-                ${renderAttrInput('heading', 'Heading', attrs.heading || 12)}
-                ${renderAttrInput('longShots', 'Long Shots', attrs.longShots || 14)}
-                ${renderAttrInput('longThrows', 'Long Throws', attrs.longThrows || 8)}
-                ${renderAttrInput('marking', 'Marking', attrs.marking || 11)}
-                ${renderAttrInput('passing', 'Passing', attrs.passing || 16)}
-                ${renderAttrInput('penaltyTaking', 'Penalty Taking', attrs.penaltyTaking || 14)}
-                ${renderAttrInput('tackling', 'Tackling', attrs.tackling || 12)}
-                ${renderAttrInput('technique', 'Technique', attrs.technique || 16)}
+                ${renderAttrInput('crossing', 'Crossing', attrs.crossing !== undefined ? attrs.crossing : 65)}
+                ${renderAttrInput('dribbling', 'Dribbling', attrs.dribbling !== undefined ? attrs.dribbling : 90)}
+                ${renderAttrInput('finishing', 'Finishing', attrs.finishing !== undefined ? attrs.finishing : 90)}
+                ${renderAttrInput('firstTouch', 'First Touch', attrs.firstTouch !== undefined ? attrs.firstTouch : 90)}
+                ${renderAttrInput('heading', 'Heading', attrs.heading !== undefined ? attrs.heading : 45)}
+                ${renderAttrInput('longShots', 'Long Shots', attrs.longShots !== undefined ? attrs.longShots : 75)}
+                ${renderAttrInput('marking', 'Marking', attrs.marking !== undefined ? attrs.marking : 20)}
+                ${renderAttrInput('passing', 'Passing', attrs.passing !== undefined ? attrs.passing : 75)}
+                ${renderAttrInput('tackling', 'Tackling', attrs.tackling !== undefined ? attrs.tackling : 20)}
+                ${renderAttrInput('technique', 'Technique', attrs.technique !== undefined ? attrs.technique : 85)}
               </div>
             </div>
 
-            <!-- MENTAL COLUMN -->
+            <!-- COLUMN 2: MENTAL (14 Attributes - OUTFIELD) -->
             <div class="attr-col">
               <div class="attr-col-heading">Mental</div>
               <div class="attr-list">
-                ${renderAttrInput('aggression', 'Aggression', attrs.aggression || 12)}
-                ${renderAttrInput('anticipation', 'Anticipation', attrs.anticipation || 16)}
-                ${renderAttrInput('bravery', 'Bravery', attrs.bravery || 14)}
-                ${renderAttrInput('composure', 'Composure', attrs.composure || 16)}
-                ${renderAttrInput('concentration', 'Concentration', attrs.concentration || 14)}
-                ${renderAttrInput('decisions', 'Decisions', attrs.decisions || 15)}
-                ${renderAttrInput('determination', 'Determination', attrs.determination || 17)}
-                ${renderAttrInput('flair', 'Flair', attrs.flair || 15)}
-                ${renderAttrInput('leadership', 'Leadership', attrs.leadership || 14)}
-                ${renderAttrInput('offTheBall', 'Off The Ball', attrs.offTheBall || 16)}
-                ${renderAttrInput('positioning', 'Positioning', attrs.positioning || 13)}
-                ${renderAttrInput('teamwork', 'Teamwork', attrs.teamwork || 15)}
-                ${renderAttrInput('vision', 'Vision', attrs.vision || 16)}
-                ${renderAttrInput('workRate', 'Work Rate', attrs.workRate || 16)}
+                ${renderAttrInput('aggression', 'Aggression', attrs.aggression !== undefined ? attrs.aggression : 30)}
+                ${renderAttrInput('anticipation', 'Anticipation', attrs.anticipation !== undefined ? attrs.anticipation : 85)}
+                ${renderAttrInput('bravery', 'Bravery', attrs.bravery !== undefined ? attrs.bravery : 60)}
+                ${renderAttrInput('composure', 'Composure', attrs.composure !== undefined ? attrs.composure : 90)}
+                ${renderAttrInput('concentration', 'Concentration', attrs.concentration !== undefined ? attrs.concentration : 80)}
+                ${renderAttrInput('decisions', 'Decisions', attrs.decisions !== undefined ? attrs.decisions : 80)}
+                ${renderAttrInput('determination', 'Determination', attrs.determination !== undefined ? attrs.determination : 90)}
+                ${renderAttrInput('flair', 'Flair', attrs.flair !== undefined ? attrs.flair : 90)}
+                ${renderAttrInput('leadership', 'Leadership', attrs.leadership !== undefined ? attrs.leadership : 65)}
+                ${renderAttrInput('offTheBall', 'Off the Ball', attrs.offTheBall !== undefined ? attrs.offTheBall : 85)}
+                ${renderAttrInput('positioning', 'Positioning', attrs.positioning !== undefined ? attrs.positioning : 20)}
+                ${renderAttrInput('teamwork', 'Teamwork', attrs.teamwork !== undefined ? attrs.teamwork : 50)}
+                ${renderAttrInput('vision', 'Vision', attrs.vision !== undefined ? attrs.vision : 80)}
+                ${renderAttrInput('workRate', 'Work Rate', attrs.workRate !== undefined ? attrs.workRate : 65)}
               </div>
             </div>
 
-            <!-- PHYSICAL COLUMN -->
-            <div class="attr-col">
-              <div class="attr-col-heading">Physical</div>
-              <div class="attr-list">
-                ${renderAttrInput('acceleration', 'Acceleration', attrs.acceleration || 15)}
-                ${renderAttrInput('agility', 'Agility', attrs.agility || 15)}
-                ${renderAttrInput('balance', 'Balance', attrs.balance || 14)}
-                ${renderAttrInput('jumpingReach', 'Jumping Reach', attrs.jumpingReach || 12)}
-                ${renderAttrInput('naturalFitness', 'Natural Fitness', attrs.naturalFitness || 16)}
-                ${renderAttrInput('pace', 'Pace', attrs.pace || 15)}
-                ${renderAttrInput('stamina', 'Stamina', attrs.stamina || 16)}
-                ${renderAttrInput('strength', 'Strength', attrs.strength || 14)}
+            <!-- COLUMN 3: PHYSICAL + SET PIECES (OUTFIELD) -->
+            <div class="attr-col-stacked">
+              <div class="attr-col">
+                <div class="attr-col-heading">Physical</div>
+                <div class="attr-list">
+                  ${renderAttrInput('acceleration', 'Acceleration', attrs.acceleration !== undefined ? attrs.acceleration : 99)}
+                  ${renderAttrInput('agility', 'Agility', attrs.agility !== undefined ? attrs.agility : 80)}
+                  ${renderAttrInput('balance', 'Balance', attrs.balance !== undefined ? attrs.balance : 80)}
+                  ${renderAttrInput('jumpingReach', 'Jumping Reach', attrs.jumpingReach !== undefined ? attrs.jumpingReach : 40)}
+                  ${renderAttrInput('naturalFitness', 'Natural Fitness', attrs.naturalFitness !== undefined ? attrs.naturalFitness : 75)}
+                  ${renderAttrInput('pace', 'Pace', attrs.pace !== undefined ? attrs.pace : 95)}
+                  ${renderAttrInput('stamina', 'Stamina', attrs.stamina !== undefined ? attrs.stamina : 75)}
+                  ${renderAttrInput('strength', 'Strength', attrs.strength !== undefined ? attrs.strength : 60)}
+                </div>
+              </div>
+
+              <div class="attr-col">
+                <div class="attr-col-heading">Set Pieces</div>
+                <div class="attr-list">
+                  ${renderAttrInput('corners', 'Corners', attrs.corners !== undefined ? attrs.corners : 65)}
+                  ${renderAttrInput('freeKicks', 'Free Kick Taking', attrs.freeKicks !== undefined ? attrs.freeKicks : 55)}
+                  ${renderAttrInput('longThrows', 'Long Throws', attrs.longThrows !== undefined ? attrs.longThrows : 15)}
+                  ${renderAttrInput('penaltyTaking', 'Penalty Taking', attrs.penaltyTaking !== undefined ? attrs.penaltyTaking : 90)}
+                </div>
               </div>
             </div>
           `}
@@ -629,6 +654,20 @@ export function renderPlayerDetailView(container, playerId) {
         `;
       }
       showToast('Photo removed.');
+    };
+  }
+
+  // Handle Position Change to switch between Goalkeeper and Outfield attribute matrices
+  const posSelect = container.querySelector('#edit-player-pos');
+  if (posSelect) {
+    posSelect.onchange = () => {
+      const newPos = posSelect.value;
+      const wasGk = isGk;
+      const nowGk = getPlayerCategory(newPos) === 'GK';
+      if (wasGk !== nowGk) {
+        handleSaveProfile(false);
+        renderPlayerDetailView(container, player.id);
+      }
     };
   }
 
