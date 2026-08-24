@@ -1169,10 +1169,10 @@ function openAttributesImportModal({ isGk, playerName, onApply }) {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// FMINSIDE LINK IMPORTER & HTML PARSER
+// FMINSIDE LINK IMPORTER & ROBUST HTML / TEXT PARSER
 // ────────────────────────────────────────────────────────────────────────────
 
-export function parseFmInsideHtml(html, url = '') {
+export function parseFmInsideHtml(content, url = '') {
   const result = {
     attributes: {},
     name: null,
@@ -1182,84 +1182,67 @@ export function parseFmInsideHtml(html, url = '') {
     photo: null
   };
 
-  if (!html || typeof html !== 'string') return result;
+  if (!content || typeof content !== 'string') return result;
 
   try {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
+    const isHtml = /<[a-z][\s\S]*>/i.test(content);
 
     // 1. Player Name
-    const h1 = doc.querySelector('h1');
-    if (h1 && h1.textContent.trim()) {
-      result.name = h1.textContent.trim().replace(/\s+/g, ' ');
-    } else {
-      const ogTitle = doc.querySelector('meta[property="og:title"]');
-      if (ogTitle && ogTitle.content) {
-        result.name = ogTitle.content.split('-')[0].trim();
-      } else if (url) {
-        const slug = url.split('/').pop().replace(/^[0-9]+-/, '').replace(/-/g, ' ');
-        if (slug) {
-          result.name = slug.replace(/\b\w/g, l => l.toUpperCase());
+    if (isHtml) {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(content, 'text/html');
+      const h1 = doc.querySelector('h1');
+      if (h1 && h1.textContent.trim()) {
+        result.name = h1.textContent.trim().replace(/\s+/g, ' ');
+      } else {
+        const ogTitle = doc.querySelector('meta[property="og:title"]');
+        if (ogTitle && ogTitle.content) {
+          result.name = ogTitle.content.split('-')[0].trim();
+        }
+      }
+
+      const ogImg = doc.querySelector('meta[property="og:image"]');
+      if (ogImg && ogImg.content && !ogImg.content.includes('default') && !ogImg.content.includes('logo')) {
+        result.photo = ogImg.content;
+      } else {
+        const faceImg = doc.querySelector('img[src*="faces"], img[src*="players"], img[src*="cuts"]');
+        if (faceImg && faceImg.src) {
+          result.photo = faceImg.src;
+        }
+      }
+
+      const natImg = doc.querySelector('img[src*="flags"], img[alt*="flag" i], [class*="flag"]');
+      if (natImg) {
+        const natName = natImg.getAttribute('alt') || natImg.getAttribute('title') || '';
+        if (natName) {
+          const country = getCountryFlag(natName);
+          if (country) result.nat = country.code;
         }
       }
     }
 
-    // 2. Photo
-    const ogImg = doc.querySelector('meta[property="og:image"]');
-    if (ogImg && ogImg.content && !ogImg.content.includes('default') && !ogImg.content.includes('logo')) {
-      result.photo = ogImg.content;
-    } else {
-      const faceImg = doc.querySelector('img[src*="faces"], img[src*="players"], img[src*="cuts"]');
-      if (faceImg && faceImg.src) {
-        result.photo = faceImg.src;
-      }
+    // Name fallback from URL or text
+    if (!result.name && url) {
+      const slug = url.split('/').pop().replace(/^[0-9]+-/, '').replace(/-/g, ' ');
+      if (slug) result.name = slug.replace(/\b\w/g, l => l.toUpperCase());
     }
 
-    // 3. Nationality
-    const natImg = doc.querySelector('img[src*="flags"], img[alt*="flag" i], [class*="flag"]');
-    if (natImg) {
-      const natName = natImg.getAttribute('alt') || natImg.getAttribute('title') || '';
-      if (natName) {
-        const country = getCountryFlag(natName);
-        if (country) result.nat = country.code;
-      }
-    }
-
-    // 4. Age
-    const ageMatch = html.match(/(?:Age|Leeftijd|Edad|Âge)[\s:<>/a-zA-Z="]+([0-9]{2})/i);
+    // Age regex
+    const ageMatch = content.match(/(?:Age|Leeftijd|Edad|Âge)[\s:<>/a-zA-Z="]+([0-9]{2})/i);
     if (ageMatch && Number(ageMatch[1]) >= 15 && Number(ageMatch[1]) <= 45) {
       result.age = Number(ageMatch[1]);
     }
 
-    // 5. Position
-    const posMatch = html.match(/(?:Position|Positie|Posici[oó]n)[\s:<>/a-zA-Z="]+(GK|DC|DL|DR|CB|LB|RB|DM|MC|CM|AMC|CAM|AML|AMR|LW|RW|ST|CF|AF)/i);
+    // Position regex
+    const posMatch = content.match(/(?:Position|Positie|Posici[oó]n)[\s:<>/a-zA-Z="]+(GK|DC|DL|DR|CB|LB|RB|DM|MC|CM|AMC|CAM|AML|AMR|LW|RW|ST|CF|AF)/i);
     if (posMatch) {
       result.pos = posMatch[1].toUpperCase();
     }
 
-    // 6. Attributes Extraction via Table / Rows / Elements
-    const elements = doc.querySelectorAll('tr, .attribute, .stat, li, dd, dt');
-    elements.forEach(el => {
-      const text = el.textContent.trim();
-      const match = text.match(/([a-zA-Z\s\(\)]+)\s*[:\t\n]?\s*([0-9]{1,2})$/);
-      if (match) {
-        const rawName = match[1].trim();
-        const rawVal = Number(match[2]);
-        if (!isNaN(rawVal) && rawVal >= 1 && rawVal <= 20) {
-          const cleanKey = rawName.toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ');
-          const key = ATTR_KEY_ALIASES[cleanKey];
-          if (key && result.attributes[key] === undefined) {
-            result.attributes[key] = Math.min(99, Math.max(1, Math.round((rawVal / 20) * 99)));
-          }
-        }
-      }
-    });
-
-    // 7. Full Text Regex Scanning for any missed attributes
-    const fullText = doc.body ? doc.body.textContent : html;
+    // 2. Comprehensive Attribute Name List
     const allAttrNames = [
       'Aerial Reach', 'Command of Area', 'Communication', 'Eccentricity', 'Handling', 'Kicking',
-      'One on Ones', '1 on 1', 'Reflexes', 'Rushing Out', 'Punching', 'Throwing',
+      'One on Ones', '1 on 1', 'Reflexes', 'Rushing Out', 'Punching', 'Tendency to Punch', 'Throwing',
       'Crossing', 'Dribbling', 'Finishing', 'First Touch', 'Free Kick Taking', 'Free Kicks',
       'Heading', 'Long Shots', 'Long Throws', 'Marking', 'Passing', 'Penalty Taking', 'Penalties',
       'Tackling', 'Technique', 'Corners',
@@ -1268,16 +1251,19 @@ export function parseFmInsideHtml(html, url = '') {
       'Acceleration', 'Agility', 'Balance', 'Jumping Reach', 'Natural Fitness', 'Pace', 'Stamina', 'Strength'
     ];
 
+    // 3. Multiline & Flexible Regex Attribute Extractor
     allAttrNames.forEach(attrName => {
       const cleanKey = attrName.toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ');
       const key = ATTR_KEY_ALIASES[cleanKey];
       if (key && result.attributes[key] === undefined) {
         const escaped = attrName.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-        const rgx = new RegExp(`(?:^|[>\\s\\n\\t])${escaped}[^a-zA-Z0-9]{1,30}?([0-9]{1,2})(?:[^0-9]|$)`, 'i');
-        const match = fullText.match(rgx);
+        // Matches same line or next line numeric value (1-20)
+        const rgx = new RegExp(`(?:^|[>\\s\\n\\t\\r])${escaped}(?:[<\\/a-zA-Z0-9_="':;\\-\\s\\t\\n\\r]{0,80}?)([0-9]{1,2})(?:[^0-9]|$)`, 'i');
+        const match = content.match(rgx);
         if (match) {
           const num = Number(match[1]);
           if (!isNaN(num) && num >= 1 && num <= 20) {
+            // Convert FM 1-20 scale to 1-99 scale
             result.attributes[key] = Math.min(99, Math.max(1, Math.round((num / 20) * 99)));
           }
         }
@@ -1285,7 +1271,7 @@ export function parseFmInsideHtml(html, url = '') {
     });
 
   } catch (err) {
-    console.error('FMInside HTML parse error:', err);
+    console.error('FMInside parse error:', err);
   }
 
   return result;
@@ -1304,48 +1290,77 @@ export function openFmInsideImportModal({ player, isGk, onApply }) {
     <div class="modal-window" style="max-width: 680px; max-height: 90vh; display: flex; flex-direction: column;">
       <div class="modal-header">
         <div class="modal-title">
-          <i class="fa-solid fa-link" style="color: #c084fc;"></i>
-          Import from FMInside — ${player.name}
+          <i class="fa-solid fa-bolt" style="color: #c084fc;"></i>
+          Import FMInside Attributes — ${player.name}
         </div>
         <button class="modal-close-btn" id="btn-close-fminside-modal" type="button">&times;</button>
       </div>
 
       <div class="modal-body" style="padding: 16px 20px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto;">
-        <div style="font-size: 0.84rem; color: #94a3b8;">
-          Paste an <strong>FMInside player link</strong> below. Attributes will be automatically scraped and converted to the <strong>1–99 scale</strong>.
+        
+        <!-- Top Instruction & Method Tabs -->
+        <div style="background: rgba(192, 132, 252, 0.08); border: 1px solid rgba(192, 132, 252, 0.25); border-radius: 8px; padding: 10px 14px;">
+          <div style="font-size: 0.84rem; font-weight: 700; color: #e9d5ff; display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+            <i class="fa-solid fa-circle-info"></i> Fast 3-Second Import (100% Reliable):
+          </div>
+          <ol style="margin: 0; padding-left: 18px; font-size: 0.78rem; color: #cbd5e1; line-height: 1.4;">
+            <li>Open the player on <a href="https://fminside.net" target="_blank" style="color: #38bdf8; text-decoration: underline;">FMInside</a>.</li>
+            <li>Press <kbd style="background: #1e1b4b; padding: 1px 5px; border-radius: 3px; border: 1px solid #4338ca;">Ctrl + A</kbd> then <kbd style="background: #1e1b4b; padding: 1px 5px; border-radius: 3px; border: 1px solid #4338ca;">Ctrl + C</kbd> on the FMInside page.</li>
+            <li>Paste (<kbd style="background: #1e1b4b; padding: 1px 5px; border-radius: 3px; border: 1px solid #4338ca;">Ctrl + V</kbd>) into the box below — attributes will be instantly mapped!</li>
+          </ol>
         </div>
 
-        <!-- URL Input Group -->
+        <!-- Direct Paste Area (Primary) -->
         <div class="form-group">
-          <label class="form-label" style="font-size: 0.8rem; color: #cbd5e1;">FMInside Player URL</label>
-          <div style="display: flex; gap: 8px;">
-            <input 
-              type="url" 
-              id="fminside-url-input" 
-              class="form-input" 
-              placeholder="e.g. https://fminside.net/players/5-fm-24/19305103-erling-haaland"
-              style="flex: 1;"
-            />
-            <button type="button" class="btn-action-primary" id="btn-fetch-fminside" style="padding: 8px 18px; font-weight: 700; white-space: nowrap;">
-              <i class="fa-solid fa-bolt"></i> Fetch & Parse
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <label class="form-label" style="font-size: 0.82rem; color: #cbd5e1; font-weight: 700;">
+              📋 Paste FMInside Page Content or Text
+            </label>
+            <button type="button" id="btn-load-trubin-sample" style="background: none; border: none; color: #38bdf8; font-size: 0.74rem; cursor: pointer; text-decoration: underline;">
+              Load Sample Data (Trubin GK)
             </button>
           </div>
-          <div style="display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap;">
-            <span style="font-size: 0.72rem; color: #64748b;">Quick Examples:</span>
-            <button type="button" class="btn-url-example" data-url="https://fminside.net/players/5-fm-24/19305103-erling-haaland" style="background: none; border: none; color: #38bdf8; font-size: 0.72rem; cursor: pointer; text-decoration: underline;">Erling Haaland</button>
-            <button type="button" class="btn-url-example" data-url="https://fminside.net/players/5-fm-24/29215033-jude-bellingham" style="background: none; border: none; color: #38bdf8; font-size: 0.72rem; cursor: pointer; text-decoration: underline;">Jude Bellingham</button>
-            <button type="button" class="btn-url-example" data-url="https://fminside.net/players/5-fm-24/28080004-thibaut-courtois" style="background: none; border: none; color: #38bdf8; font-size: 0.72rem; cursor: pointer; text-decoration: underline;">Thibaut Courtois</button>
-          </div>
+          <textarea 
+            id="fminside-paste-textarea" 
+            class="notes-textarea" 
+            rows="6" 
+            placeholder="Paste FMInside page text (Ctrl+V) here to automatically parse attributes..."
+            style="font-family: monospace; font-size: 0.78rem; color: #38bdf8; background: #030617;"
+          ></textarea>
         </div>
+
+        <!-- URL Fetch Accordion (Secondary) -->
+        <details style="background: #05081c; border: 1px solid #16204c; border-radius: 8px; padding: 8px 12px;">
+          <summary style="font-size: 0.78rem; color: #94a3b8; cursor: pointer; font-weight: 600;">
+            🌐 Or Fetch Directly via FMInside URL
+          </summary>
+          <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 6px;">
+            <div style="display: flex; gap: 8px;">
+              <input 
+                type="url" 
+                id="fminside-url-input" 
+                class="form-input" 
+                placeholder="https://fminside.net/players/..."
+                style="flex: 1; font-size: 0.8rem;"
+              />
+              <button type="button" class="btn-action-primary" id="btn-fetch-fminside" style="padding: 6px 14px; font-size: 0.8rem; font-weight: 700; white-space: nowrap;">
+                <i class="fa-solid fa-cloud-arrow-down"></i> Fetch URL
+              </button>
+            </div>
+            <div style="font-size: 0.72rem; color: #64748b;">
+              * Note: If FMInside's Cloudflare blocks the proxy fetch, use the Paste box above.
+            </div>
+          </div>
+        </details>
 
         <!-- Options Checkboxes -->
         <div style="background: #05081c; border: 1px solid #16204c; border-radius: 8px; padding: 10px 14px; display: flex; flex-direction: column; gap: 6px;">
-          <div style="font-size: 0.78rem; font-weight: 700; color: #e2e8f0; margin-bottom: 2px;">Import Settings</div>
+          <div style="font-size: 0.78rem; font-weight: 700; color: #e2e8f0; margin-bottom: 2px;">Import Options</div>
           <label style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: #cbd5e1; cursor: pointer;">
-            <input type="checkbox" id="chk-import-attrs" checked /> Apply all attributes (converted to 1–99 scale)
+            <input type="checkbox" id="chk-import-attrs" checked /> Apply all attributes (scaled from 1–20 to 1–99 scale)
           </label>
           <label style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: #cbd5e1; cursor: pointer;">
-            <input type="checkbox" id="chk-import-bio" /> Update biographical data (Name, Age, Position, Nat)
+            <input type="checkbox" id="chk-import-bio" /> Update biographical info (Name, Position, Age, Nat)
           </label>
           <label style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: #cbd5e1; cursor: pointer;">
             <input type="checkbox" id="chk-import-photo" checked /> Update Player Facepack Photo (if found)
@@ -1357,21 +1372,6 @@ export function openFmInsideImportModal({ player, isGk, onApply }) {
           <!-- Injected via JS -->
         </div>
 
-        <!-- Manual HTML / Page Text Fallback Accordion -->
-        <details style="background: #030617; border: 1px solid #121b44; border-radius: 8px; padding: 8px 12px;">
-          <summary style="font-size: 0.78rem; color: #94a3b8; cursor: pointer; font-weight: 600;">
-            🛠️ Manual Paste Fallback (if FMInside blocks proxy request)
-          </summary>
-          <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 8px;">
-            <div style="font-size: 0.74rem; color: #64748b;">
-              If direct URL fetching fails, open the FMInside player page in your browser, press <kbd>Ctrl+A</kbd> then <kbd>Ctrl+C</kbd> (or View Page Source), and paste the text/HTML here:
-            </div>
-            <textarea id="fminside-manual-textarea" class="notes-textarea" rows="5" placeholder="Paste FMInside page text or HTML here..." style="font-size: 0.76rem; font-family: monospace;"></textarea>
-            <button type="button" class="btn-action-secondary" id="btn-parse-manual-fminside" style="align-self: flex-start; font-size: 0.78rem; padding: 5px 12px;">
-              <i class="fa-solid fa-code"></i> Parse Pasted Content
-            </button>
-          </div>
-        </details>
       </div>
 
       <div style="padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; background: #070b24; border-top: 1px solid #1c2766; flex-shrink: 0;">
@@ -1390,19 +1390,13 @@ export function openFmInsideImportModal({ player, isGk, onApply }) {
   modal.querySelector('#btn-cancel-fminside-modal').onclick = closeModal;
   modal.onclick = (e) => { if (e.target === modal) closeModal(); };
 
+  const pasteArea = modal.querySelector('#fminside-paste-textarea');
   const urlInput = modal.querySelector('#fminside-url-input');
   const btnFetch = modal.querySelector('#btn-fetch-fminside');
   const previewArea = modal.querySelector('#fminside-preview-area');
   const btnConfirm = modal.querySelector('#btn-confirm-fminside-import');
+  const btnSample = modal.querySelector('#btn-load-trubin-sample');
   let parsedData = null;
-
-  // Example button clicks
-  modal.querySelectorAll('.btn-url-example').forEach(btn => {
-    btn.onclick = () => {
-      urlInput.value = btn.getAttribute('data-url');
-      btnFetch.click();
-    };
-  });
 
   // Display parsed data preview
   const displayPreview = (data) => {
@@ -1411,12 +1405,12 @@ export function openFmInsideImportModal({ player, isGk, onApply }) {
 
     if (attrCount === 0 && !data.name) {
       previewArea.style.display = 'block';
-      previewArea.innerHTML = `<span style="color: #f87171;">⚠️ No player attributes could be recognized. Try pasting the page HTML in the Manual Fallback section below.</span>`;
+      previewArea.innerHTML = `<span style="color: #f87171;">⚠️ No player attributes could be recognized. Make sure you copied the FMInside player page.</span>`;
       btnConfirm.disabled = true;
       return;
     }
 
-    const sampleAttrs = Object.entries(data.attributes || {}).slice(0, 10);
+    const sampleAttrs = Object.entries(data.attributes || {}).slice(0, 12);
     const natFlag = data.nat ? getCountryFlag(data.nat).flagHtml : '';
 
     previewArea.style.display = 'block';
@@ -1432,7 +1426,7 @@ export function openFmInsideImportModal({ player, isGk, onApply }) {
           </div>
         </div>
         <span style="background: rgba(74, 222, 128, 0.15); color: #4ade80; border: 1px solid rgba(74, 222, 128, 0.4); border-radius: 4px; padding: 2px 8px; font-size: 0.78rem; font-weight: 700;">
-          ${attrCount} Attributes Found
+          ✅ ${attrCount} Attributes Mapped (1–99)
         </span>
       </div>
 
@@ -1443,77 +1437,139 @@ export function openFmInsideImportModal({ player, isGk, onApply }) {
             <strong class="attr-${v >= 80 ? 'elite' : v >= 65 ? 'great' : v >= 45 ? 'good' : 'poor'}">${v}</strong>
           </div>
         `).join('')}
-        ${attrCount > 10 ? `<div style="color: #64748b; font-size: 0.72rem; align-self: center;">+ ${attrCount - 10} more attributes</div>` : ''}
+        ${attrCount > 12 ? `<div style="color: #64748b; font-size: 0.72rem; align-self: center;">+ ${attrCount - 12} more attributes</div>` : ''}
       </div>
     `;
 
     btnConfirm.disabled = false;
   };
 
-  // Direct URL Fetch Handler
-  btnFetch.onclick = async () => {
-    const url = urlInput.value.trim();
-    if (!url) {
-      showToast('Please enter an FMInside URL', 'error');
+  // Instant Auto-Parse on Paste into Textarea
+  const handlePasteParse = () => {
+    const text = pasteArea.value.trim();
+    if (!text) {
+      previewArea.style.display = 'none';
+      btnConfirm.disabled = true;
       return;
     }
-
-    btnFetch.disabled = true;
-    btnFetch.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Fetching...';
-    previewArea.style.display = 'block';
-    previewArea.innerHTML = '<span style="color: #38bdf8;"><i class="fa-solid fa-spinner fa-spin"></i> Fetching player data from FMInside...</span>';
-
-    try {
-      const proxies = [
-        `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-        `https://corsproxy.io/?${encodeURIComponent(url)}`,
-        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
-      ];
-
-      let html = null;
-      for (const proxyUrl of proxies) {
-        try {
-          const res = await fetch(proxyUrl, { cache: 'no-cache' });
-          if (res.ok) {
-            const text = await res.text();
-            if (text && text.length > 200) {
-              html = text;
-              break;
-            }
-          }
-        } catch (e) {
-          // try next proxy
-        }
-      }
-
-      if (!html) {
-        throw new Error('Could not fetch via CORS proxies. Please use the Manual Paste Fallback below.');
-      }
-
-      const result = parseFmInsideHtml(html, url);
-      displayPreview(result);
-    } catch (err) {
-      previewArea.style.display = 'block';
-      previewArea.innerHTML = `<span style="color: #f87171;">⚠️ ${err.message}</span>`;
-      btnConfirm.disabled = true;
-    } finally {
-      btnFetch.disabled = false;
-      btnFetch.innerHTML = '<i class="fa-solid fa-bolt"></i> Fetch & Parse';
-    }
+    const result = parseFmInsideHtml(text, urlInput ? urlInput.value.trim() : '');
+    displayPreview(result);
   };
 
-  // Manual Paste Handler
-  const manualTextarea = modal.querySelector('#fminside-manual-textarea');
-  const btnParseManual = modal.querySelector('#btn-parse-manual-fminside');
-  if (btnParseManual && manualTextarea) {
-    btnParseManual.onclick = () => {
-      const text = manualTextarea.value.trim();
-      if (!text) {
-        showToast('Please paste content into the manual box first', 'error');
+  pasteArea.oninput = handlePasteParse;
+  pasteArea.onpaste = () => setTimeout(handlePasteParse, 50);
+
+  // Sample Data Button (Trubin)
+  if (btnSample) {
+    btnSample.onclick = () => {
+      pasteArea.value = `Anatolii Trubin - FM23 Profile
+Goalkeeping
+Aerial Reach 16
+Command of Area 14
+Communication 14
+Eccentricity 4
+Handling 16
+Kicking 15
+One on Ones 15
+Reflexes 16
+Rushing Out 13
+Tendency to Punch 11
+Throwing 14
+Mental
+Aggression 9
+Anticipation 15
+Bravery 15
+Composure 15
+Concentration 14
+Decisions 14
+Determination 16
+Flair 5
+Leadership 12
+Off the Ball 4
+Positioning 16
+Teamwork 13
+Vision 11
+Work Rate 12
+Physical
+Acceleration 11
+Agility 12
+Balance 11
+Jumping Reach 17
+Natural Fitness 14
+Pace 11
+Stamina 13
+Strength 16
+Technical
+Technique 11`;
+      handlePasteParse();
+    };
+  }
+
+  // URL Fetch Handler (with fallback message)
+  if (btnFetch && urlInput) {
+    btnFetch.onclick = async () => {
+      const url = urlInput.value.trim();
+      if (!url) {
+        showToast('Please enter an FMInside URL', 'error');
         return;
       }
-      const result = parseFmInsideHtml(text, urlInput.value.trim());
-      displayPreview(result);
+
+      btnFetch.disabled = true;
+      btnFetch.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Fetching...';
+      previewArea.style.display = 'block';
+      previewArea.innerHTML = '<span style="color: #38bdf8;"><i class="fa-solid fa-spinner fa-spin"></i> Fetching player data from FMInside...</span>';
+
+      try {
+        const proxies = [
+          `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+          `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
+          `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
+        ];
+
+        let html = null;
+        for (const proxyUrl of proxies) {
+          try {
+            const res = await fetch(proxyUrl, { cache: 'no-cache' });
+            if (res.ok) {
+              if (proxyUrl.includes('allorigins.win/get')) {
+                const json = await res.json();
+                if (json && json.contents && json.contents.length > 200) {
+                  html = json.contents;
+                  break;
+                }
+              } else {
+                const text = await res.text();
+                if (text && text.length > 200) {
+                  html = text;
+                  break;
+                }
+              }
+            }
+          } catch (e) {
+            // try next proxy
+          }
+        }
+
+        if (!html) {
+          throw new Error('Cloudflare blocked automated proxy fetching. Please copy & paste the FMInside page text into the box above.');
+        }
+
+        pasteArea.value = html;
+        const result = parseFmInsideHtml(html, url);
+        displayPreview(result);
+      } catch (err) {
+        previewArea.style.display = 'block';
+        previewArea.innerHTML = `
+          <div style="color: #f87171; font-size: 0.8rem; line-height: 1.4;">
+            <strong>⚠️ Notice:</strong> ${err.message}<br>
+            <span style="color: #94a3b8;">Simply open <a href="${url}" target="_blank" style="color: #38bdf8; text-decoration: underline;">FMInside</a>, press <strong>Ctrl+A</strong> & <strong>Ctrl+C</strong>, then paste into the box above!</span>
+          </div>
+        `;
+        btnConfirm.disabled = true;
+      } finally {
+        btnFetch.disabled = false;
+        btnFetch.innerHTML = '<i class="fa-solid fa-cloud-arrow-down"></i> Fetch URL';
+      }
     };
   }
 
@@ -1544,5 +1600,6 @@ export function openFmInsideImportModal({ player, isGk, onApply }) {
     onApply(payload);
   };
 }
+
 
 
