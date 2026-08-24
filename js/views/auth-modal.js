@@ -256,15 +256,60 @@ export function openAddMatchModal(matchToEdit = null) {
   const defaultAScore = matchToEdit?.awayScore !== undefined ? matchToEdit.awayScore : 0;
   const defaultComp = matchToEdit?.competition || store.leagueName || 'Premier League';
 
-  // Selected lineup set (defaults to top 11 squad players or match lineup)
-  const selectedLineup = new Set(matchToEdit?.lineup ? matchToEdit.lineup.map(Number) : squad.slice(0, 11).map(p => p.id));
-  
+  // Build initial rosterState for every squad player:
+  // rosterState[playerId] = { role: 'starter' | 'sub' | 'unused', minutes: number }
+  const rosterState = {};
+
+  if (isEdit) {
+    const existingLineup = new Set((matchToEdit.lineup || []).map(Number));
+    const existingSubs = new Set();
+    if (Array.isArray(matchToEdit.subs)) {
+      matchToEdit.subs.forEach(s => {
+        const sId = typeof s === 'object' ? (s.playerInId || s.playerId) : s;
+        if (sId) existingSubs.add(Number(sId));
+      });
+    }
+    const pm = matchToEdit.playerMinutes || {};
+
+    squad.forEach(p => {
+      const pId = Number(p.id);
+      const isStarter = existingLineup.has(pId);
+      const isSub = existingSubs.has(pId);
+      const explicitMins = pm[pId] !== undefined ? Number(pm[pId]) : pm[String(pId)] !== undefined ? Number(pm[String(pId)]) : null;
+
+      let role = 'unused';
+      let minutes = 0;
+
+      if (explicitMins !== null) {
+        minutes = explicitMins;
+        if (isStarter) role = 'starter';
+        else if (isSub || minutes > 0) role = 'sub';
+        else role = 'unused';
+      } else if (isStarter) {
+        role = 'starter';
+        minutes = 90;
+      } else if (isSub) {
+        role = 'sub';
+        minutes = 30;
+      }
+
+      rosterState[pId] = { role, minutes };
+    });
+  } else {
+    // New match: Default top 11 to Starters (90 min), rest to Unused (0 min)
+    squad.forEach((p, idx) => {
+      const pId = Number(p.id);
+      if (idx < 11) {
+        rosterState[pId] = { role: 'starter', minutes: 90 };
+      } else {
+        rosterState[pId] = { role: 'unused', minutes: 0 };
+      }
+    });
+  }
+
   // Goalscorers & Assisters state
   let goalscorersList = matchToEdit?.goalscorers ? JSON.parse(JSON.stringify(matchToEdit.goalscorers)) : [];
   let assistersList = matchToEdit?.assisters ? JSON.parse(JSON.stringify(matchToEdit.assisters)) : [];
-
-  // Substitutes In: { playerInId, minuteOn, playerOutId }
-  let subsList = matchToEdit?.subs ? JSON.parse(JSON.stringify(matchToEdit.subs)) : [];
 
   // Dynamic state values
   let curDate = defaultDate;
@@ -296,6 +341,16 @@ export function openAddMatchModal(matchToEdit = null) {
     if (elAScore) curAScore = Number(elAScore.value) || 0;
     if (elComp) curComp = elComp.value;
 
+    // Collect roster values from DOM
+    modalRoot.querySelectorAll('.roster-player-row').forEach(row => {
+      const pId = Number(row.getAttribute('data-player-id'));
+      const role = row.querySelector('.select-player-role')?.value || 'unused';
+      const mins = Number(row.querySelector('.input-player-mins')?.value) || 0;
+      if (pId) {
+        rosterState[pId] = { role, minutes: mins };
+      }
+    });
+
     // Collect scorers
     goalscorersList = [];
     modalRoot.querySelectorAll('#goalscorers-container [data-g-idx]').forEach(row => {
@@ -313,37 +368,29 @@ export function openAddMatchModal(matchToEdit = null) {
       const p = squad.find(sq => sq.id === pId);
       if (p) assistersList.push({ playerId: pId, name: p.name, count });
     });
-
-    // Collect subs
-    subsList = [];
-    modalRoot.querySelectorAll('#subs-container [data-s-idx]').forEach(row => {
-      const playerInId = Number(row.querySelector('.select-sub-in')?.value);
-      const minuteOn = Number(row.querySelector('.input-sub-minute')?.value) || 60;
-      const playerOutId = Number(row.querySelector('.select-sub-out')?.value);
-      if (playerInId) subsList.push({ playerInId, minuteOn, playerOutId });
-    });
   };
 
   const renderModalContent = () => {
-    // Build starter options (only squad players in lineup)
-    const starterOptions = squad.filter(p => selectedLineup.has(p.id));
+    const starterCount = Object.values(rosterState).filter(r => r.role === 'starter').length;
+    const subCount = Object.values(rosterState).filter(r => r.role === 'sub').length;
+    const totalActive = starterCount + subCount;
 
     modalRoot.innerHTML = `
-      <div class="modal-window" style="max-width: 640px; max-height: 90vh; display: flex; flex-direction: column;">
+      <div class="modal-window" style="max-width: 680px; max-height: 92vh; display: flex; flex-direction: column;">
         <div class="modal-header">
           <div class="modal-title">
             <i class="fa-solid fa-futbol" style="color: #38bdf8;"></i>
-            ${isEdit ? 'Edit Match Fixture & Result' : 'Record Match Result'}
+            ${isEdit ? 'Edit Match Fixture &amp; Player Playtime' : 'Record Match Result &amp; Player Playtime'}
           </div>
           <button class="modal-close-btn" id="btn-close-match-modal" type="button">&times;</button>
         </div>
 
-        <div class="modal-body" style="overflow-y: auto; flex: 1; padding: 18px 22px; gap: 16px; display: flex; flex-direction: column;">
+        <div class="modal-body" style="overflow-y: auto; flex: 1; padding: 16px 20px; gap: 14px; display: flex; flex-direction: column;">
 
-          <!-- Row 1: Competition, Gameweek, Date -->
+          <!-- Row 1: Competition, Gameweek, Match Date (Parallel Alignment) -->
           <div style="display: grid; grid-template-columns: 1.4fr 0.8fr 1fr; gap: 10px; align-items: end;">
             <div class="form-group" style="margin: 0;">
-              <label class="form-label">Competition</label>
+              <label class="form-label" style="font-weight: 700; color: #94a3b8; margin-bottom: 4px;">Competition</label>
               <select id="match-comp" class="form-select">
                 <option value="Premier League" ${curComp === 'Premier League' ? 'selected' : ''}>Premier League</option>
                 <option value="UEFA Champions League" ${curComp === 'UEFA Champions League' ? 'selected' : ''}>UEFA Champions League</option>
@@ -353,31 +400,31 @@ export function openAddMatchModal(matchToEdit = null) {
               </select>
             </div>
             <div class="form-group" style="margin: 0;">
-              <label class="form-label">Gameweek / Rd</label>
+              <label class="form-label" style="font-weight: 700; color: #94a3b8; margin-bottom: 4px;">Gameweek / Rd</label>
               <input type="number" id="match-gw" class="form-input" value="${curGw}" min="1" max="60" />
             </div>
             <div class="form-group" style="margin: 0;">
-              <label class="form-label">Match Date</label>
+              <label class="form-label" style="font-weight: 700; color: #94a3b8; margin-bottom: 4px;">Match Date</label>
               <input type="text" id="match-date" class="form-input" value="${curDate}" placeholder="DD/MM/YYYY" />
             </div>
           </div>
 
-          <!-- Row 2: Teams & Scores — fixed parallel grid -->
-          <div style="background: #070a24; padding: 14px 12px; border-radius: 8px; border: 1px solid #1c2766;">
-            <div style="display: grid; grid-template-columns: 1fr 72px 72px 1fr; gap: 8px; align-items: end;">
+          <!-- Row 2: Teams & Scores (Parallel Alignment) -->
+          <div style="background: #070a24; padding: 12px 14px; border-radius: 8px; border: 1px solid #1c2766;">
+            <div style="display: grid; grid-template-columns: 1fr 70px 70px 1fr; gap: 10px; align-items: end;">
               <div style="display: flex; flex-direction: column; gap: 4px;">
                 <label class="form-label" style="color: #38bdf8; font-weight: 700; margin: 0;">Home Team</label>
                 <input type="text" id="match-home" class="form-input" value="${curHome}" required style="margin: 0;" />
               </div>
               <div style="display: flex; flex-direction: column; gap: 4px;">
-                <label class="form-label" style="text-align: center; font-weight: 700; margin: 0;">Score</label>
+                <label class="form-label" style="text-align: center; font-weight: 700; margin: 0; color: #fbbf24;">Score</label>
                 <input type="number" id="match-hscore" class="form-input" value="${curHScore}" min="0"
-                  style="text-align: center; font-weight: 900; font-size: 1.25rem; color: #fbbf24; padding: 4px; margin: 0;" />
+                  style="text-align: center; font-weight: 900; font-size: 1.25rem; color: #fbbf24; padding: 6px; margin: 0;" />
               </div>
               <div style="display: flex; flex-direction: column; gap: 4px;">
-                <label class="form-label" style="text-align: center; font-weight: 700; margin: 0;">Score</label>
+                <label class="form-label" style="text-align: center; font-weight: 700; margin: 0; color: #fbbf24;">Score</label>
                 <input type="number" id="match-ascore" class="form-input" value="${curAScore}" min="0"
-                  style="text-align: center; font-weight: 900; font-size: 1.25rem; color: #fbbf24; padding: 4px; margin: 0;" />
+                  style="text-align: center; font-weight: 900; font-size: 1.25rem; color: #fbbf24; padding: 6px; margin: 0;" />
               </div>
               <div style="display: flex; flex-direction: column; gap: 4px;">
                 <label class="form-label" style="color: #38bdf8; font-weight: 700; margin: 0;">Away Team</label>
@@ -386,74 +433,96 @@ export function openAddMatchModal(matchToEdit = null) {
             </div>
           </div>
 
-          <!-- Section 3: Match Lineup & Appearances -->
-          <div class="form-group" style="margin: 0;">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
-              <label class="form-label" style="font-weight: 800; color: #38bdf8; font-size: 0.85rem; margin: 0;">
-                <i class="fa-solid fa-users"></i> Starting Lineup (${selectedLineup.size} Selected)
-              </label>
-              <button type="button" id="btn-quick-starting-11" style="background: #102048; border: 1px solid #233772; color: #38bdf8; padding: 3px 10px; border-radius: 4px; font-size: 0.72rem; font-weight: 800; cursor: pointer;">
-                Select Top 11
-              </button>
+          <!-- Section 3: Player Lineup Roles & Minutes Played Editor (Connected to Analytics) -->
+          <div class="form-group" style="margin: 0; background: #060920; border: 1px solid #1c2766; border-radius: 8px; padding: 12px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;">
+              <div>
+                <label class="form-label" style="font-weight: 800; color: #38bdf8; font-size: 0.88rem; margin: 0; display: flex; align-items: center; gap: 6px;">
+                  <i class="fa-solid fa-users"></i> Match Lineup &amp; Player Playtime
+                </label>
+                <div style="font-size: 0.72rem; color: #94a3b8; margin-top: 2px;">
+                  Set each player's role (<strong>Starter / Sub / Unused</strong>) and exact minutes played. Automatically connected to <strong>Analytics</strong>!
+                </div>
+              </div>
+
+              <!-- Quick Presets -->
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <button type="button" id="btn-preset-top11" style="background: #102048; border: 1px solid #233772; color: #38bdf8; padding: 4px 10px; border-radius: 4px; font-size: 0.72rem; font-weight: 800; cursor: pointer;" title="Set first 11 players as 90' Starters">
+                  Top 11 (90')
+                </button>
+                <button type="button" id="btn-preset-all90" style="background: #102048; border: 1px solid #233772; color: #4ade80; padding: 4px 8px; border-radius: 4px; font-size: 0.72rem; font-weight: 800; cursor: pointer;" title="Set all players to 90 min">
+                  All 90'
+                </button>
+                <button type="button" id="btn-preset-clear" style="background: #201214; border: 1px solid #4a1d24; color: #f87171; padding: 4px 8px; border-radius: 4px; font-size: 0.72rem; font-weight: 800; cursor: pointer;" title="Reset all to Unused (0')">
+                  Clear
+                </button>
+              </div>
             </div>
-            <div style="font-size: 0.72rem; color: #cbd5e1; margin-bottom: 6px;">
-              Every checked player will automatically receive <strong>+1 Match Appearance</strong> in the <strong>Squad</strong> and <strong>Data Analytics</strong> tables.
+
+            <!-- Participation Summary Bar -->
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 0.72rem; padding: 4px 8px; background: #030614; border-radius: 4px; border: 1px solid #141c44;">
+              <span style="color: #4ade80; font-weight: 800;"><i class="fa-solid fa-circle-check"></i> ${starterCount} Starters</span>
+              <span style="color: #64748b;">•</span>
+              <span style="color: #fb923c; font-weight: 800;"><i class="fa-solid fa-arrow-right-arrow-left"></i> ${subCount} Subs</span>
+              <span style="color: #64748b;">•</span>
+              <span style="color: #cbd5e1; font-weight: 700;">${totalActive} Total Active Players</span>
             </div>
-            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(135px, 1fr)); gap: 6px; max-height: 140px; overflow-y: auto; background: #05071a; padding: 8px; border-radius: 6px; border: 1px solid #16204e;">
+
+            <!-- Scrollable Squad Roster Table -->
+            <div style="max-height: 240px; overflow-y: auto; display: flex; flex-direction: column; gap: 5px; padding-right: 4px;">
               ${squad.map(p => {
-                const isChecked = selectedLineup.has(p.id);
+                const pId = Number(p.id);
+                const r = rosterState[pId] || { role: 'unused', minutes: 0 };
+                const isStarter = r.role === 'starter';
+                const isSub = r.role === 'sub';
+                const isUnused = r.role === 'unused';
+
+                let rowBg = '#070a22';
+                let rowBorder = '#182352';
+                if (isStarter) {
+                  rowBg = 'rgba(34, 197, 94, 0.08)';
+                  rowBorder = 'rgba(34, 197, 94, 0.35)';
+                } else if (isSub) {
+                  rowBg = 'rgba(251, 146, 60, 0.08)';
+                  rowBorder = 'rgba(251, 146, 60, 0.35)';
+                }
+
                 return `
-                  <label style="display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: ${isChecked ? '#ffffff' : '#94a3b8'}; cursor: pointer; background: ${isChecked ? '#0e1c4e' : 'transparent'}; padding: 4px 6px; border-radius: 4px; border: 1px solid ${isChecked ? '#233772' : 'transparent'};">
-                    <input type="checkbox" class="chk-lineup-player" data-id="${p.id}" ${isChecked ? 'checked' : ''} />
-                    <span style="font-weight: 800; color: #fbbf24; font-size: 0.7rem;">#${p.num || p.number || '—'}</span>
-                    <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1;">${p.name.split(' ').pop()} (${p.pos})</span>
-                  </label>
+                  <div class="roster-player-row" data-player-id="${pId}"
+                    style="display: grid; grid-template-columns: 1fr 140px 90px; gap: 8px; align-items: center; background: ${rowBg}; border: 1px solid ${rowBorder}; border-radius: 6px; padding: 6px 10px; transition: all 0.15s ease;">
+                    
+                    <!-- Player Info -->
+                    <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
+                      <span style="font-weight: 800; color: #fbbf24; font-size: 0.72rem; min-width: 22px;">#${p.num || p.number || '—'}</span>
+                      <span style="font-weight: 700; color: ${isUnused ? '#94a3b8' : '#ffffff'}; font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${p.name}</span>
+                      <span style="font-size: 0.68rem; background: #0c1538; color: #38bdf8; padding: 1px 6px; border-radius: 3px; border: 1px solid #1e2c66;">${p.pos}</span>
+                    </div>
+
+                    <!-- Role Selector -->
+                    <div>
+                      <select class="form-select select-player-role" data-player-id="${pId}"
+                        style="padding: 4px 8px; font-size: 0.75rem; font-weight: 700; color: ${isStarter ? '#4ade80' : isSub ? '#fb923c' : '#94a3b8'}; background: #040718; border-color: ${isStarter ? '#22c55e60' : isSub ? '#fb923c60' : '#1f2b5c'};">
+                        <option value="starter" ${isStarter ? 'selected' : ''}>🟢 Starter (XI)</option>
+                        <option value="sub" ${isSub ? 'selected' : ''}>🟠 Sub (Bench)</option>
+                        <option value="unused" ${isUnused ? 'selected' : ''}>⚪ Unused (0')</option>
+                      </select>
+                    </div>
+
+                    <!-- Minutes Input -->
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                      <input type="number" class="form-input input-player-mins" data-player-id="${pId}"
+                        value="${r.minutes}" min="0" max="120"
+                        style="padding: 4px 6px; text-align: center; font-weight: 900; font-size: 0.82rem; color: ${isStarter ? '#4ade80' : isSub ? '#fb923c' : '#64748b'}; width: 55px;"
+                        title="Minutes played (0-120)" />
+                      <span style="font-size: 0.72rem; color: #64748b; font-weight: 700;">min</span>
+                    </div>
+                  </div>
                 `;
               }).join('')}
             </div>
           </div>
 
-          <!-- Section 4: Substitutes In (with playtime tracking) -->
-          <div class="form-group" style="margin: 0;">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-              <label class="form-label" style="font-weight: 800; color: #fb923c; font-size: 0.85rem; margin: 0;">
-                <i class="fa-solid fa-arrows-left-right"></i> Substitutes In
-                <span style="font-size: 0.7rem; color: #94a3b8; font-weight: 400; margin-left: 6px;">— tracks each player's minutes played in Analytics</span>
-              </label>
-              <button type="button" id="btn-add-sub-row" style="background: #102048; border: 1px solid #233772; color: #fb923c; padding: 3px 10px; border-radius: 4px; font-size: 0.72rem; font-weight: 800; cursor: pointer;">
-                + Add Sub
-              </button>
-            </div>
-            <div style="font-size: 0.7rem; color: #64748b; margin-bottom: 6px;">
-              <span style="color: #fb923c; font-weight: 700;">Sub In</span> = player coming on &nbsp;|&nbsp;
-              <span style="color: #94a3b8; font-weight: 700;">Min</span> = minute substitution happened (1–90) &nbsp;|&nbsp;
-              <span style="color: #ef4444; font-weight: 700;">Replaced</span> = player going off
-            </div>
-            <div id="subs-container" style="display: flex; flex-direction: column; gap: 6px;">
-              ${subsList.length === 0 ? `
-                <div style="font-size: 0.72rem; color: #64748b; font-style: italic;">No substitutes recorded. Click "+ Add Sub" to track a substitution and calculate playtime.</div>
-              ` : subsList.map((s, idx) => `
-                <div style="display: grid; grid-template-columns: 1fr 56px 1fr 28px; gap: 6px; align-items: center;" data-s-idx="${idx}">
-                  <select class="form-select select-sub-in" style="padding: 5px 8px; font-size: 0.78rem; border: 1px solid #fb923c40;" title="Player coming on">
-                    ${squad.filter(p => !selectedLineup.has(p.id)).map(p => `
-                      <option value="${p.id}" ${Number(p.id) === Number(s.playerInId) ? 'selected' : ''}>#${p.num || p.number || '—'} ${p.name.split(' ').pop()} (${p.pos})</option>
-                    `).join('')}
-                  </select>
-                  <input type="number" class="form-input input-sub-minute" value="${s.minuteOn || 60}" min="1" max="90"
-                    style="text-align: center; font-weight: 800; padding: 5px 4px; color: #fb923c; font-size: 0.85rem;" title="Minute substitution happened" />
-                  <select class="form-select select-sub-out" style="padding: 5px 8px; font-size: 0.78rem; border: 1px solid #ef444440;" title="Player going off">
-                    ${starterOptions.map(p => `
-                      <option value="${p.id}" ${Number(p.id) === Number(s.playerOutId) ? 'selected' : ''}>#${p.num || p.number || '—'} ${p.name.split(' ').pop()} (${p.pos})</option>
-                    `).join('')}
-                  </select>
-                  <button type="button" class="btn-remove-sub" data-idx="${idx}"
-                    style="background: #dc2626; color: white; border: none; border-radius: 4px; width: 28px; height: 28px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.85rem;">&times;</button>
-                </div>
-              `).join('')}
-            </div>
-          </div>
-
-          <!-- Section 5: Goalscorers -->
+          <!-- Section 4: Goalscorers -->
           <div class="form-group" style="margin: 0;">
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
               <label class="form-label" style="font-weight: 800; color: #4ade80; font-size: 0.85rem; margin: 0;">
@@ -465,7 +534,7 @@ export function openAddMatchModal(matchToEdit = null) {
             </div>
             <div id="goalscorers-container" style="display: flex; flex-direction: column; gap: 6px;">
               ${goalscorersList.length === 0 ? `
-                <div style="font-size: 0.72rem; color: #64748b; font-style: italic;">No goalscorers added yet. Click "+ Add Goalscorer" to select players who scored.</div>
+                <div style="font-size: 0.72rem; color: #64748b; font-style: italic;">No goalscorers added yet. Click "+ Add Goalscorer" to record scorers.</div>
               ` : goalscorersList.map((g, idx) => `
                 <div style="display: flex; align-items: center; gap: 8px;" data-g-idx="${idx}">
                   <select class="form-select select-scorer" style="flex: 1; padding: 6px 10px; font-size: 0.8rem;">
@@ -480,7 +549,7 @@ export function openAddMatchModal(matchToEdit = null) {
             </div>
           </div>
 
-          <!-- Section 6: Assisters -->
+          <!-- Section 5: Assisters -->
           <div class="form-group" style="margin: 0;">
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
               <label class="form-label" style="font-weight: 800; color: #38bdf8; font-size: 0.85rem; margin: 0;">
@@ -492,7 +561,7 @@ export function openAddMatchModal(matchToEdit = null) {
             </div>
             <div id="assisters-container" style="display: flex; flex-direction: column; gap: 6px;">
               ${assistersList.length === 0 ? `
-                <div style="font-size: 0.72rem; color: #64748b; font-style: italic;">No assisters added yet. Click "+ Add Assister" to select players who assisted.</div>
+                <div style="font-size: 0.72rem; color: #64748b; font-style: italic;">No assisters added yet. Click "+ Add Assister" to record assists.</div>
               ` : assistersList.map((a, idx) => `
                 <div style="display: flex; align-items: center; gap: 8px;" data-a-idx="${idx}">
                   <select class="form-select select-assister" style="flex: 1; padding: 6px 10px; font-size: 0.8rem;">
@@ -508,7 +577,7 @@ export function openAddMatchModal(matchToEdit = null) {
           </div>
         </div>
 
-        <div class="modal-footer" style="padding: 12px 22px;">
+        <div class="modal-footer" style="padding: 12px 20px;">
           <button type="button" class="btn-modal-cancel" id="btn-cancel-match">Cancel</button>
           <button type="button" class="btn-action-primary" id="btn-save-match-result" style="padding: 8px 24px; font-size: 0.9rem; font-weight: 800;">
             ${isEdit ? 'Save Match Edits' : 'Record Match Result'}
@@ -523,53 +592,84 @@ export function openAddMatchModal(matchToEdit = null) {
     modalRoot.querySelector('#btn-cancel-match').onclick = closeModal;
     modalRoot.onclick = (e) => { if (e.target === modalRoot) closeModal(); };
 
-    // Bind Lineup Checkbox Changes
-    modalRoot.querySelectorAll('.chk-lineup-player').forEach(chk => {
-      chk.onchange = () => {
+    // Bind Role Changes
+    modalRoot.querySelectorAll('.select-player-role').forEach(sel => {
+      sel.onchange = () => {
         syncStateFromDOM();
-        const pId = Number(chk.getAttribute('data-id'));
-        if (chk.checked) selectedLineup.add(pId);
-        else selectedLineup.delete(pId);
+        const pId = Number(sel.getAttribute('data-player-id'));
+        const newRole = sel.value;
+        if (pId && rosterState[pId]) {
+          rosterState[pId].role = newRole;
+          if (newRole === 'starter' && (rosterState[pId].minutes === 0 || !rosterState[pId].minutes)) {
+            rosterState[pId].minutes = 90;
+          } else if (newRole === 'sub' && (rosterState[pId].minutes === 0 || rosterState[pId].minutes === 90)) {
+            rosterState[pId].minutes = 30;
+          } else if (newRole === 'unused') {
+            rosterState[pId].minutes = 0;
+          }
+        }
         renderModalContent();
       };
     });
 
-    // Quick Select 11
-    const btnQuick11 = modalRoot.querySelector('#btn-quick-starting-11');
-    if (btnQuick11) {
-      btnQuick11.onclick = () => {
-        syncStateFromDOM();
-        selectedLineup.clear();
-        squad.slice(0, 11).forEach(p => selectedLineup.add(p.id));
-        renderModalContent();
-      };
-    }
-
-    // Add Sub Row
-    const btnAddSub = modalRoot.querySelector('#btn-add-sub-row');
-    if (btnAddSub) {
-      btnAddSub.onclick = () => {
-        syncStateFromDOM();
-        const bench = squad.filter(p => !selectedLineup.has(p.id));
-        const starters = squad.filter(p => selectedLineup.has(p.id));
-        if (bench.length > 0 && starters.length > 0) {
-          subsList.push({ playerInId: bench[0].id, minuteOn: 60, playerOutId: starters[0].id });
-          renderModalContent();
-        } else {
-          showToast('Need bench players & starters to add a substitution.', 'info');
+    // Bind Minutes Changes
+    modalRoot.querySelectorAll('.input-player-mins').forEach(inp => {
+      inp.oninput = () => {
+        const pId = Number(inp.getAttribute('data-player-id'));
+        const mins = Number(inp.value) || 0;
+        if (pId && rosterState[pId]) {
+          rosterState[pId].minutes = mins;
+          if (mins > 0 && rosterState[pId].role === 'unused') {
+            rosterState[pId].role = mins >= 80 ? 'starter' : 'sub';
+          } else if (mins === 0) {
+            rosterState[pId].role = 'unused';
+          }
         }
       };
-    }
-
-    // Remove Sub Row
-    modalRoot.querySelectorAll('.btn-remove-sub').forEach(btn => {
-      btn.onclick = () => {
+      inp.onchange = () => {
         syncStateFromDOM();
-        const idx = Number(btn.getAttribute('data-idx'));
-        subsList.splice(idx, 1);
         renderModalContent();
       };
     });
+
+    // Presets
+    const btnTop11 = modalRoot.querySelector('#btn-preset-top11');
+    if (btnTop11) {
+      btnTop11.onclick = () => {
+        syncStateFromDOM();
+        squad.forEach((p, idx) => {
+          const pId = Number(p.id);
+          if (idx < 11) {
+            rosterState[pId] = { role: 'starter', minutes: 90 };
+          } else {
+            rosterState[pId] = { role: 'unused', minutes: 0 };
+          }
+        });
+        renderModalContent();
+      };
+    }
+
+    const btnAll90 = modalRoot.querySelector('#btn-preset-all90');
+    if (btnAll90) {
+      btnAll90.onclick = () => {
+        syncStateFromDOM();
+        squad.forEach(p => {
+          rosterState[Number(p.id)] = { role: 'starter', minutes: 90 };
+        });
+        renderModalContent();
+      };
+    }
+
+    const btnClear = modalRoot.querySelector('#btn-preset-clear');
+    if (btnClear) {
+      btnClear.onclick = () => {
+        syncStateFromDOM();
+        squad.forEach(p => {
+          rosterState[Number(p.id)] = { role: 'unused', minutes: 0 };
+        });
+        renderModalContent();
+      };
+    }
 
     // Add Goalscorer Row
     const btnAddScorer = modalRoot.querySelector('#btn-add-goalscorer-row');
@@ -621,25 +721,22 @@ export function openAddMatchModal(matchToEdit = null) {
       btnSave.onclick = () => {
         syncStateFromDOM();
 
-        // Calculate player minutes:
-        // Starters play from 0 until they're subbed off (or 90)
-        // Subs play from minuteOn until 90
+        const starters = [];
+        const subs = [];
         const playerMinutes = {};
-        const lineupArr = Array.from(selectedLineup);
 
-        // All starters default to 90 mins
-        lineupArr.forEach(pId => { playerMinutes[pId] = 90; });
-
-        // Apply substitutions
-        subsList.forEach(sub => {
-          const min = Math.max(1, Math.min(90, Number(sub.minuteOn) || 60));
-          // Player going OFF: played from 0 to minuteOn
-          if (sub.playerOutId && playerMinutes[sub.playerOutId] !== undefined) {
-            playerMinutes[sub.playerOutId] = min;
-          }
-          // Player coming ON: played from minuteOn to 90
-          if (sub.playerInId) {
-            playerMinutes[sub.playerInId] = 90 - min;
+        Object.keys(rosterState).forEach(pIdStr => {
+          const pId = Number(pIdStr);
+          const r = rosterState[pId];
+          if (r.role === 'starter') {
+            starters.push(pId);
+            playerMinutes[pId] = Number(r.minutes) || 90;
+          } else if (r.role === 'sub') {
+            subs.push({ playerInId: pId, minutes: Number(r.minutes) || 30 });
+            playerMinutes[pId] = Number(r.minutes) || 30;
+          } else if (Number(r.minutes) > 0) {
+            subs.push({ playerInId: pId, minutes: Number(r.minutes) });
+            playerMinutes[pId] = Number(r.minutes);
           }
         });
 
@@ -652,8 +749,8 @@ export function openAddMatchModal(matchToEdit = null) {
           away: curAway.trim() || 'Opponent',
           competition: curComp,
           status: 'FT',
-          lineup: lineupArr,
-          subs: subsList,
+          lineup: starters,
+          subs,
           playerMinutes,
           goalscorers: goalscorersList,
           assisters: assistersList
@@ -661,10 +758,10 @@ export function openAddMatchModal(matchToEdit = null) {
 
         if (isEdit) {
           store.updateMatchResult(matchToEdit.id, payload);
-          showToast(`Match GW ${curGw} updated! Appearances, playtime & analytics recalculated.`);
+          showToast(`Match GW ${curGw} updated! Appearances, playtime &amp; analytics recalculated.`);
         } else {
           store.addMatchResult(payload);
-          showToast(`Match recorded! Lineup, playtime, goals & analytics updated.`);
+          showToast(`Match recorded! Lineup, playtime, goals &amp; analytics updated.`);
         }
 
         closeModal();

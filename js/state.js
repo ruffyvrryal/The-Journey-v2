@@ -610,6 +610,90 @@ class StateStore {
         userRow.pts = (wins * 3) + (draws * 1);
       }
     }
+
+    // Recalculate squad players' match appearances, minutes, goals, assists, and clean sheets
+    if (Array.isArray(season.squad) && Array.isArray(season.results) && season.results.length > 0) {
+      const appsMap = {};
+      const minsMap = {};
+      const goalsMap = {};
+      const assistsMap = {};
+      const cleanSheetsMap = {};
+
+      results.forEach(m => {
+        const pm = m.playerMinutes || {};
+        const starters = new Set((m.lineup || []).map(Number));
+        const subs = new Set();
+        if (Array.isArray(m.subs)) {
+          m.subs.forEach(s => {
+            const sId = typeof s === 'object' ? (s.playerInId || s.playerId) : s;
+            if (sId) subs.add(Number(sId));
+          });
+        }
+        const hasPm = Object.keys(pm).length > 0;
+
+        season.squad.forEach(p => {
+          const pId = Number(p.id);
+          let mins = 0;
+          if (hasPm) {
+            mins = Number(pm[pId] !== undefined ? pm[pId] : pm[String(pId)] || 0);
+          } else if (starters.has(pId)) {
+            mins = 90;
+          } else if (subs.has(pId)) {
+            mins = 30;
+          }
+
+          if (mins > 0 || starters.has(pId) || subs.has(pId)) {
+            appsMap[pId] = (appsMap[pId] || 0) + 1;
+            minsMap[pId] = (minsMap[pId] || 0) + mins;
+          }
+        });
+
+        // Goals
+        if (Array.isArray(m.goalscorers)) {
+          m.goalscorers.forEach(g => {
+            const gId = Number(g.playerId);
+            const count = Number(g.count) || 1;
+            goalsMap[gId] = (goalsMap[gId] || 0) + count;
+          });
+        }
+
+        // Assists
+        if (Array.isArray(m.assisters)) {
+          m.assisters.forEach(a => {
+            const aId = Number(a.playerId);
+            const count = Number(a.count) || 1;
+            assistsMap[aId] = (assistsMap[aId] || 0) + count;
+          });
+        }
+
+        // Clean sheets
+        const homeNorm = (m.home || '').toLowerCase();
+        const awayNorm = (m.away || '').toLowerCase();
+        const isHome = homeNorm.includes('man utd') || homeNorm.includes('manchester united') || homeNorm.includes(club);
+        const isAway = awayNorm.includes('man utd') || awayNorm.includes('manchester united') || awayNorm.includes(club);
+        const conceded = isHome ? Number(m.awayScore) : Number(m.homeScore);
+        if (conceded === 0 && (isHome || isAway)) {
+          season.squad.forEach(p => {
+            const pId = Number(p.id);
+            const played = starters.has(pId) || subs.has(pId) || (Number(pm[pId]) > 0);
+            if (played && ['GK', 'DC', 'DL', 'DR', 'DM'].includes(p.pos)) {
+              cleanSheetsMap[pId] = (cleanSheetsMap[pId] || 0) + 1;
+            }
+          });
+        }
+      });
+
+      season.squad.forEach(p => {
+        const pId = Number(p.id);
+        if (appsMap[pId] !== undefined) p.apps = appsMap[pId];
+        if (minsMap[pId] !== undefined) p.totalMins = minsMap[pId];
+        if (goalsMap[pId] !== undefined) p.goals = goalsMap[pId];
+        if (assistsMap[pId] !== undefined) p.assists = assistsMap[pId];
+        if (p.pos === 'GK' || ['DC', 'DL', 'DR'].includes(p.pos)) {
+          if (cleanSheetsMap[pId] !== undefined) p.cleanSheets = cleanSheetsMap[pId];
+        }
+      });
+    }
   }
 
   addMatchResult(match) {
@@ -632,68 +716,6 @@ class StateStore {
     };
 
     season.results.unshift(newMatch);
-
-    // Apply Player Stats increments to Squad
-    if (Array.isArray(season.squad)) {
-      // 1. Appearances (starters + subs coming on)
-      const allParticipants = new Set(newMatch.lineup.map(Number));
-      (newMatch.subs || []).forEach(s => { if (s.playerInId) allParticipants.add(Number(s.playerInId)); });
-      season.squad.forEach(p => {
-        if (allParticipants.has(Number(p.id))) {
-          p.apps = (Number(p.apps) || 0) + 1;
-        }
-      });
-
-      // 2. Accumulate minutes played (totalMins)
-      const pm = newMatch.playerMinutes || {};
-      if (Object.keys(pm).length > 0) {
-        season.squad.forEach(p => {
-          const mins = pm[p.id] !== undefined ? Number(pm[p.id]) : pm[String(p.id)] !== undefined ? Number(pm[String(p.id)]) : null;
-          if (mins !== null && mins > 0) {
-            p.totalMins = (Number(p.totalMins) || 0) + mins;
-          }
-        });
-      } else {
-        // Fallback: starters get 90 min each if no playerMinutes data
-        new Set(newMatch.lineup.map(Number)).forEach(pid => {
-          const p = season.squad.find(sq => sq.id === pid);
-          if (p) p.totalMins = (Number(p.totalMins) || 0) + 90;
-        });
-      }
-
-      // 3. Goalscorers
-      if (Array.isArray(newMatch.goalscorers)) {
-        newMatch.goalscorers.forEach(g => {
-          const p = season.squad.find(sq => sq.id === Number(g.playerId));
-          if (p) {
-            p.goals = (Number(p.goals) || 0) + (Number(g.count) || 1);
-          }
-        });
-      }
-
-      // 4. Assisters
-      if (Array.isArray(newMatch.assisters)) {
-        newMatch.assisters.forEach(a => {
-          const p = season.squad.find(sq => sq.id === Number(a.playerId));
-          if (p) {
-            p.assists = (Number(p.assists) || 0) + (Number(a.count) || 1);
-          }
-        });
-      }
-
-      // 5. Clean Sheets
-      const isHomeUser = newMatch.home.toLowerCase().includes('man utd') || newMatch.home.toLowerCase().includes((this.clubName || '').toLowerCase());
-      const conceded = isHomeUser ? newMatch.awayScore : newMatch.homeScore;
-      if (conceded === 0 && Array.isArray(newMatch.lineup)) {
-        const lineupSet = new Set(newMatch.lineup.map(Number));
-        season.squad.forEach(p => {
-          if (lineupSet.has(Number(p.id)) && (p.pos === 'GK' || p.pos === 'DC' || p.pos === 'DL' || p.pos === 'DR')) {
-            p.cleanSheets = (Number(p.cleanSheets) || 0) + 1;
-          }
-        });
-      }
-    }
-
     this.recalculateSeasonStats();
     this.notify();
   }
