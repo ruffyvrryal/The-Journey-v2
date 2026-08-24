@@ -395,8 +395,11 @@ export function renderPlayerDetailView(container, playerId) {
         <div class="attributes-card-header">
           <div class="attr-header-title">Attributes</div>
           <div class="attr-header-actions">
-            <button type="button" class="btn-import-link" id="btn-import-fminside-link" title="Import player attributes from an FMInside URL">
-              <i class="fa-solid fa-link"></i> Import from FMInside
+            <button type="button" class="btn-import-ocr" id="btn-import-ocr-screenshot" title="Import attributes by pasting or uploading a screenshot (OCR)">
+              <i class="fa-solid fa-camera"></i> Import Screenshot (OCR)
+            </button>
+            <button type="button" class="btn-import-link" id="btn-import-fminside-link" title="Import player attributes from FMInside text or URL">
+              <i class="fa-solid fa-link"></i> Import FMInside
             </button>
             <button type="button" class="btn-import-attrs" id="btn-import-player-attrs" title="Import attributes from JSON file or text">
               <i class="fa-solid fa-file-import"></i> Import JSON
@@ -826,6 +829,23 @@ export function renderPlayerDetailView(container, playerId) {
             }
           }
           showToast(`⚡ FMInside data applied for ${data.name || player.name}! Remember to save.`);
+        }
+      });
+    };
+  }
+
+  // Bind Import from Screenshot (OCR) Button
+  const btnImportOcr = container.querySelector('#btn-import-ocr-screenshot');
+  if (btnImportOcr) {
+    btnImportOcr.onclick = () => {
+      openScreenshotOcrModal({
+        player,
+        isGk,
+        onApply: (data) => {
+          if (data.attributes) {
+            const count = applyImportedAttributes(data.attributes);
+            showToast(`📸 ${count} attributes applied from Screenshot OCR for ${player.name}! Remember to save.`);
+          }
         }
       });
     };
@@ -1763,6 +1783,310 @@ Strength 19`;
   };
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+// SCREENSHOT OCR ATTRIBUTE IMPORTER
+// ────────────────────────────────────────────────────────────────────────────
 
+export function openScreenshotOcrModal({ player, isGk, onApply }) {
+  const existing = document.getElementById('screenshot-ocr-modal-root');
+  if (existing) existing.remove();
 
+  const modal = document.createElement('div');
+  modal.id = 'screenshot-ocr-modal-root';
+  modal.className = 'modal-backdrop';
+  modal.style.cssText = 'z-index: 9999;';
 
+  modal.innerHTML = `
+    <div class="modal-window" style="max-width: 700px; max-height: 90vh; display: flex; flex-direction: column;">
+      <div class="modal-header">
+        <div class="modal-title">
+          <i class="fa-solid fa-camera" style="color: #facc15;"></i>
+          Import Attributes from Screenshot (OCR) — ${player.name}
+        </div>
+        <button class="modal-close-btn" id="btn-close-ocr-modal" type="button">&times;</button>
+      </div>
+
+      <div class="modal-body" style="padding: 16px 20px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto;">
+        
+        <div style="background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.25); border-radius: 8px; padding: 10px 14px;">
+          <div style="font-size: 0.85rem; font-weight: 800; color: #fef08a; display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> 1-Click Screenshot Importer:
+          </div>
+          <div style="font-size: 0.78rem; color: #cbd5e1; line-height: 1.4;">
+            Take a screenshot of the player's attributes (e.g. from FM23/FM24, FMInside, or Mobile) with <kbd style="background: #1e1b4b; padding: 1px 5px; border-radius: 3px;">Win + Shift + S</kbd> or <kbd style="background: #1e1b4b; padding: 1px 5px; border-radius: 3px;">PrtScn</kbd>, then press <kbd style="background: #1e1b4b; padding: 1px 5px; border-radius: 3px;">Ctrl + V</kbd> anywhere in this window!
+          </div>
+        </div>
+
+        <!-- Dropzone Area -->
+        <div id="ocr-dropzone" style="border: 2px dashed #334155; border-radius: 12px; padding: 24px 16px; text-align: center; background: #030617; cursor: pointer; transition: all 0.2s ease;">
+          <input type="file" id="ocr-file-input" accept="image/*" style="display:none;" />
+          <i class="fa-solid fa-cloud-arrow-up" style="font-size: 2rem; color: #facc15; margin-bottom: 8px;"></i>
+          <div style="font-size: 0.88rem; font-weight: 700; color: #ffffff; margin-bottom: 4px;">
+            Paste screenshot (<kbd style="background: #1e1b4b; padding: 2px 6px; border-radius: 3px;">Ctrl + V</kbd>) or Click to Upload
+          </div>
+          <div style="font-size: 0.75rem; color: #64748b;">
+            Supports PNG, JPG, JPEG, WEBP, and direct clipboard screenshots
+          </div>
+        </div>
+
+        <!-- Image Preview & OCR Status -->
+        <div id="ocr-preview-container" style="display: none; flex-direction: column; gap: 10px;">
+          <div style="display: flex; gap: 12px; align-items: center; background: #070b28; border: 1px solid #1c2766; border-radius: 8px; padding: 10px 14px;">
+            <img id="ocr-img-thumb" src="" alt="Screenshot" style="width: 70px; height: 70px; object-fit: cover; border-radius: 6px; border: 1px solid #38bdf8;" />
+            <div style="flex: 1;">
+              <div id="ocr-status-title" style="font-size: 0.84rem; font-weight: 700; color: #ffffff; margin-bottom: 4px;">
+                Ready to Process Screenshot
+              </div>
+              <div id="ocr-progress-bar-wrap" style="width: 100%; height: 6px; background: #030617; border-radius: 3px; overflow: hidden; display: none;">
+                <div id="ocr-progress-bar" style="width: 0%; height: 100%; background: #facc15; transition: width 0.2s;"></div>
+              </div>
+              <div id="ocr-status-text" style="font-size: 0.75rem; color: #94a3b8; margin-top: 4px;">
+                Click "Run OCR Recognition" to extract attributes.
+              </div>
+            </div>
+            <button type="button" class="btn-action-primary" id="btn-run-ocr" style="padding: 8px 16px; font-weight: 700; font-size: 0.82rem; white-space: nowrap;">
+              <i class="fa-solid fa-brain"></i> Run OCR
+            </button>
+          </div>
+        </div>
+
+        <!-- Recognized Attributes Results -->
+        <div id="ocr-results-area" style="display: none; background: #070b28; border: 1px solid #1c2766; border-radius: 8px; padding: 12px 14px;">
+          <!-- Injected via JS -->
+        </div>
+
+      </div>
+
+      <div style="padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; background: #070b24; border-top: 1px solid #1c2766; flex-shrink: 0;">
+        <button type="button" class="btn-modal-cancel" id="btn-close-ocr-bottom">Cancel</button>
+        <button type="button" id="btn-confirm-ocr-import" class="btn-action-primary" style="padding: 10px 22px; font-weight: 800;" disabled>
+          <i class="fa-solid fa-check"></i> Apply Attributes to Profile
+        </button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  const closeModal = () => {
+    window.removeEventListener('paste', handleGlobalPaste);
+    modal.remove();
+  };
+
+  modal.querySelector('#btn-close-ocr-modal').onclick = closeModal;
+  modal.querySelector('#btn-close-ocr-bottom').onclick = closeModal;
+  modal.onclick = (e) => { if (e.target === modal) closeModal(); };
+
+  const dropzone = modal.querySelector('#ocr-dropzone');
+  const fileInput = modal.querySelector('#ocr-file-input');
+  const previewContainer = modal.querySelector('#ocr-preview-container');
+  const imgThumb = modal.querySelector('#ocr-img-thumb');
+  const statusTitle = modal.querySelector('#ocr-status-title');
+  const statusText = modal.querySelector('#ocr-status-text');
+  const progressWrap = modal.querySelector('#ocr-progress-bar-wrap');
+  const progressBar = modal.querySelector('#ocr-progress-bar');
+  const btnRunOcr = modal.querySelector('#btn-run-ocr');
+  const resultsArea = modal.querySelector('#ocr-results-area');
+  const btnConfirm = modal.querySelector('#btn-confirm-ocr-import');
+
+  let currentImageSource = null;
+  let parsedOcrData = null;
+
+  // Dropzone click
+  dropzone.onclick = () => fileInput.click();
+
+  // Dropzone drag-over
+  dropzone.ondragover = (e) => {
+    e.preventDefault();
+    dropzone.style.borderColor = '#facc15';
+    dropzone.style.background = '#0a1030';
+  };
+  dropzone.ondragleave = () => {
+    dropzone.style.borderColor = '#334155';
+    dropzone.style.background = '#030617';
+  };
+  dropzone.ondrop = (e) => {
+    e.preventDefault();
+    dropzone.style.borderColor = '#334155';
+    dropzone.style.background = '#030617';
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      handleImageLoaded(file);
+    }
+  };
+
+  fileInput.onchange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) handleImageLoaded(file);
+  };
+
+  // Global Paste Listener for window while modal is open
+  const handleGlobalPaste = (e) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.startsWith('image/')) {
+        const file = items[i].getAsFile();
+        if (file) {
+          handleImageLoaded(file);
+          break;
+        }
+      }
+    }
+  };
+  window.addEventListener('paste', handleGlobalPaste);
+
+  // When image is loaded
+  const handleImageLoaded = (fileOrBlob) => {
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      currentImageSource = evt.target.result;
+      imgThumb.src = currentImageSource;
+      previewContainer.style.display = 'flex';
+      resultsArea.style.display = 'none';
+      btnConfirm.disabled = true;
+      statusTitle.textContent = 'Screenshot Loaded';
+      statusText.textContent = 'Running automatic OCR recognition...';
+      // Automatically trigger OCR
+      executeOcr(currentImageSource);
+    };
+    reader.readAsDataURL(fileOrBlob);
+  };
+
+  // Image preprocessing canvas for high OCR contrast
+  const preprocessImage = (imageSrc) => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+
+        // Convert to high-contrast grayscale for sharper attribute number OCR
+        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imgData.data;
+        for (let i = 0; i < data.length; i += 4) {
+          const avg = (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114);
+          data[i] = avg;
+          data[i + 1] = avg;
+          data[i + 2] = avg;
+        }
+        ctx.putImageData(imgData, 0, 0);
+        resolve(canvas);
+      };
+      img.src = imageSrc;
+    });
+  };
+
+  // Run OCR
+  const executeOcr = async (imageSrc) => {
+    if (!imageSrc) return;
+
+    btnRunOcr.disabled = true;
+    btnRunOcr.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
+    progressWrap.style.display = 'block';
+    progressBar.style.width = '15%';
+    statusTitle.textContent = 'Extracting text from image...';
+    statusText.textContent = 'Initializing Tesseract OCR engine...';
+
+    try {
+      // Ensure Tesseract is ready
+      if (!window.Tesseract) {
+        statusText.textContent = 'Loading OCR library from CDN...';
+        await new Promise((res, rej) => {
+          const script = document.createElement('script');
+          script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+          script.onload = res;
+          script.onerror = rej;
+          document.head.appendChild(script);
+        });
+      }
+
+      const preprocessedCanvas = await preprocessImage(imageSrc);
+
+      const worker = await Tesseract.createWorker('eng', 1, {
+        logger: (m) => {
+          if (m.status === 'recognizing text') {
+            const p = Math.round((m.progress || 0) * 100);
+            progressBar.style.width = `${Math.max(15, p)}%`;
+            statusText.textContent = `Recognizing attributes... ${p}%`;
+          }
+        }
+      });
+
+      const { data: { text } } = await worker.recognize(preprocessedCanvas);
+      await worker.terminate();
+
+      progressBar.style.width = '100%';
+      statusTitle.textContent = '✅ OCR Complete!';
+      statusText.textContent = 'Attributes successfully recognized from screenshot.';
+
+      // Parse the recognized OCR text
+      const parsed = parseFmInsideHtml(text);
+      displayOcrResults(parsed, text);
+
+    } catch (err) {
+      console.error('OCR Error:', err);
+      statusTitle.textContent = '⚠️ OCR Processing Error';
+      statusText.textContent = err.message || 'Could not process screenshot image.';
+    } finally {
+      btnRunOcr.disabled = false;
+      btnRunOcr.innerHTML = '<i class="fa-solid fa-rotate-right"></i> Re-scan';
+    }
+  };
+
+  btnRunOcr.onclick = () => {
+    if (currentImageSource) executeOcr(currentImageSource);
+  };
+
+  // Display OCR Results
+  const displayOcrResults = (data, rawText) => {
+    parsedOcrData = data;
+    const attrCount = Object.keys(data.attributes || {}).length;
+
+    resultsArea.style.display = 'block';
+
+    if (attrCount === 0) {
+      resultsArea.innerHTML = `
+        <div style="color: #f87171; font-size: 0.8rem; line-height: 1.4;">
+          <strong>⚠️ No attributes recognized in the screenshot.</strong><br>
+          <span style="color: #94a3b8;">Tips: Make sure the screenshot clearly shows the attribute names and their numeric values (1–20). You can also use the <strong>Import FMInside</strong> button to paste text directly!</span>
+        </div>
+      `;
+      btnConfirm.disabled = true;
+      return;
+    }
+
+    const sampleAttrs = Object.entries(data.attributes || {});
+
+    resultsArea.innerHTML = `
+      <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #1c2b66; padding-bottom: 8px; margin-bottom: 8px;">
+        <span style="font-size: 0.85rem; font-weight: 700; color: #ffffff;">
+          Detected Attributes from Screenshot:
+        </span>
+        <span style="background: rgba(74, 222, 128, 0.15); color: #4ade80; border: 1px solid rgba(74, 222, 128, 0.4); border-radius: 4px; padding: 2px 8px; font-size: 0.78rem; font-weight: 700;">
+          ✅ ${attrCount} Attributes Extracted (1–99 Scale)
+        </span>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 6px; font-size: 0.75rem; max-height: 200px; overflow-y: auto; padding-right: 4px;">
+        ${sampleAttrs.map(([k, v]) => `
+          <div style="background: #030617; padding: 4px 6px; border-radius: 4px; display: flex; justify-content: space-between;">
+            <span style="color: #cbd5e1; text-transform: capitalize;">${k.replace(/([A-Z])/g, ' $1')}</span>
+            <strong class="attr-${v >= 80 ? 'elite' : v >= 65 ? 'great' : v >= 45 ? 'good' : 'poor'}">${v}</strong>
+          </div>
+        `).join('')}
+      </div>
+    `;
+
+    btnConfirm.disabled = false;
+  };
+
+  btnConfirm.onclick = () => {
+    if (!parsedOcrData) return;
+    closeModal();
+    onApply(parsedOcrData);
+  };
+}

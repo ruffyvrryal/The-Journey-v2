@@ -33,9 +33,16 @@ class App {
       store.appMode = 'manager_vault';
     }
 
-    // Subscribe to state changes
+    // Subscribe to state changes with animation frame batching (eliminates lag)
+    this._renderScheduled = false;
     store.subscribe(() => {
-      this.render();
+      if (!this._renderScheduled) {
+        this._renderScheduled = true;
+        requestAnimationFrame(() => {
+          this._renderScheduled = false;
+          this.render();
+        });
+      }
     });
 
     // Subscribe to Firebase Auth
