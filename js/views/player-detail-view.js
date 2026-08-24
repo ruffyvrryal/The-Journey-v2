@@ -1975,6 +1975,11 @@ export function openScreenshotOcrModal({ player, isGk, onApply }) {
 
         // Adaptive Binarization: Invert dark FM background into crisp black-on-white text
         for (let i = 0; i < data.length; i += 4) {
+          // Contrast boost
+          data[i] = Math.min(255, data[i] * 1.2);
+          data[i+1] = Math.min(255, data[i+1] * 1.2);
+          data[i+2] = Math.min(255, data[i+2] * 1.2);
+
           const r = data[i];
           const g = data[i + 1];
           const b = data[i + 2];
@@ -1994,22 +1999,52 @@ export function openScreenshotOcrModal({ player, isGk, onApply }) {
           }
         }
         ctx.putImageData(imgData, 0, 0);
-        resolve(canvas);
+        const sharpened = sharpenCanvas(canvas);
+        resolve(sharpened);
       };
       img.src = imageSrc;
     });
   };
 
-  // Run OCR with Tesseract
+  const sharpenCanvas = (canvas) => {
+    const ctx = canvas.getContext('2d');
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imageData.data;
+    const sharpened = new ImageData(canvas.width, canvas.height);
+    const sData = sharpened.data;
+    const w = canvas.width;
+    const h = canvas.height;
+    for (let y = 1; y < h - 1; y++) {
+        for (let x = 1; x < w - 1; x++) {
+            for (let c = 0; c < 3; c++) {
+                let i = (y * w + x) * 4 + c;
+                sData[i] = Math.min(255, Math.max(0, 5 * data[i] - (data[i-4] + data[i+4] + data[i-w*4] + data[i+w*4])));
+            }
+            sData[(y * w + x) * 4 + 3] = 255;
+        }
+    }
+    ctx.putImageData(sharpened, 0, 0);
+    return canvas;
+  };
+
+  const getProcessedSliceCanvas = (sourceCanvas, x, y, w, h) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    canvas.getContext('2d').drawImage(sourceCanvas, x, y, w, h, 0, 0, w, h);
+    return canvas;
+  };
+
+  // Multi-pass 3-column slice OCR Engine
   const executeOcr = async (imageSrc) => {
     if (!imageSrc) return;
 
     btnRunOcr.disabled = true;
-    btnRunOcr.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Analyzing...';
+    btnRunOcr.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Scanning 3 Columns...';
     progressWrap.style.display = 'block';
-    progressBar.style.width = '20%';
-    statusTitle.textContent = 'Preprocessing screenshot & enhancing contrast...';
-    statusText.textContent = 'Upscaling image for high-precision digit recognition...';
+    progressBar.style.width = '15%';
+    statusTitle.textContent = 'Preprocessing 3-Column FM Matrix...';
+    statusText.textContent = 'Preparing image and isolating Technical, Mental, & Physical columns...';
 
     try {
       if (!window.Tesseract) {
@@ -2023,38 +2058,60 @@ export function openScreenshotOcrModal({ player, isGk, onApply }) {
         });
       }
 
-      const preprocessedCanvas = await preprocessImage(imageSrc);
+      // Load and preprocess the image (up‑scale, contrast, binarize, sharpen)
+      const processedCanvas = await preprocessImage(imageSrc);
 
-      const worker = await Tesseract.createWorker('eng', 1, {
-        logger: (m) => {
-          if (m.status === 'recognizing text') {
-            const p = Math.round((m.progress || 0) * 100);
-            progressBar.style.width = `${Math.max(20, p)}%`;
-            statusText.textContent = `Scanning FM attributes and numbers... ${p}%`;
-          }
-        }
-      });
-
-      // Configure OCR for table/block reading
+      const worker = await Tesseract.createWorker('eng', 1);
       await worker.setParameters({
-        tessedit_pageseg_mode: Tesseract.PSM ? Tesseract.PSM.SPARSE_TEXT : '11',
-        tessedit_char_whitelist: '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ():- /'
+        tessedit_char_whitelist: '0123456789:.-/',
+        tessedit_pageseg_mode: '6'
       });
 
-      const { data: { text } } = await worker.recognize(preprocessedCanvas);
+      let combinedRawText = '';
+
+      // Pass 1: Column 1
+      progressBar.style.width = '30%';
+      statusText.textContent = 'Scanning Column 1...';
+      const col1Canvas = getProcessedSliceCanvas(processedCanvas, 0, 0, processedCanvas.width * 0.38, processedCanvas.height);
+      const res1 = await worker.recognize(col1Canvas);
+      combinedRawText += '\n[COLUMN 1]\n' + res1.data.text;
+
+      // Pass 2: Column 2
+      progressBar.style.width = '60%';
+      statusText.textContent = 'Scanning Column 2...';
+      const col2Canvas = getProcessedSliceCanvas(processedCanvas, processedCanvas.width * 0.31, 0, processedCanvas.width * 0.38, processedCanvas.height);
+      const res2 = await worker.recognize(col2Canvas);
+      combinedRawText += '\n[COLUMN 2]\n' + res2.data.text;
+
+      // Pass 3: Column 3
+      progressBar.style.width = '85%';
+      statusText.textContent = 'Scanning Column 3...';
+      const col3Canvas = getProcessedSliceCanvas(processedCanvas, processedCanvas.width * 0.62, 0, processedCanvas.width * 0.38, processedCanvas.height);
+      const res3 = await worker.recognize(col3Canvas);
+      combinedRawText += '\n[COLUMN 3]\n' + res3.data.text;
+
+      // Pass 4: Full Image
+      progressBar.style.width = '95%';
+      const fullCanvas = getProcessedSliceCanvas(processedCanvas, 0, 0, processedCanvas.width, processedCanvas.height);
+      const resFull = await worker.recognize(fullCanvas);
+      combinedRawText += '\n[FULL SCAN]\n' + resFull.data.text;
+
       await worker.terminate();
 
       progressBar.style.width = '100%';
-      statusTitle.textContent = '✅ Attributes Extracted!';
-      statusText.textContent = 'Review and adjust any detected attribute values below.';
+      statusTitle.textContent = '✅ Screenshot Scanned Successfully!';
+      statusText.textContent = 'Attributes extracted from 3 columns. Review below:';
 
-      // Clean OCR character noise (e.g. l4 -> 14, I6 -> 16, O -> 0)
-      const cleanedOcrText = text
+      // Clean OCR character noise
+      const cleanedOcrText = combinedRawText
         .replace(/\b[lI|](\d)\b/g, '1$1')
         .replace(/\b(\d)[lI|]\b/g, '$11')
         .replace(/\b[lI|][lI|]\b/g, '11')
         .replace(/\b1O\b/g, '10')
-        .replace(/\b2O\b/g, '20');
+        .replace(/\b2O\b/g, '20')
+        .replace(/\bO\b/g, '0')
+        .replace(/\bI\b/g, '1')
+        .replace(/\bl\b/g, '1');
 
       const parsed = parseFmInsideHtml(cleanedOcrText);
       displayOcrResults(parsed, cleanedOcrText);
@@ -2073,7 +2130,7 @@ export function openScreenshotOcrModal({ player, isGk, onApply }) {
     if (currentImageSource) executeOcr(currentImageSource);
   };
 
-  // Display OCR Results with Editable Table
+  // Display OCR Results with 3-Column FM-Style Editable Table
   const displayOcrResults = (data, rawText) => {
     parsedOcrData = data;
     const attrCount = Object.keys(data.attributes || {}).length;
@@ -2083,7 +2140,7 @@ export function openScreenshotOcrModal({ player, isGk, onApply }) {
     if (attrCount === 0) {
       resultsArea.innerHTML = `
         <div style="color: #f87171; font-size: 0.8rem; line-height: 1.4; margin-bottom: 8px;">
-          <strong>⚠️ Could not automatically detect attributes from the image.</strong>
+          <strong>⚠️ No attributes recognized in the image.</strong>
         </div>
         <div style="font-size: 0.78rem; color: #94a3b8; margin-bottom: 6px;">
           Raw text detected by OCR:
@@ -2108,38 +2165,78 @@ export function openScreenshotOcrModal({ player, isGk, onApply }) {
 
     const entries = Object.entries(data.attributes || {});
 
+    // Categorize into FM Columns
+    const gkColKeys = ['aerialReach','commandOfArea','communication','eccentricity','firstTouch','handling','kicking','oneOnOnes','passing','punching','reflexes','rushingOut','throwing'];
+    const techColKeys = ['corners','crossing','dribbling','finishing','firstTouch','freeKicks','heading','longShots','longThrows','marking','passing','penaltyTaking','tackling','technique'];
+    const mentalColKeys = ['aggression','anticipation','bravery','composure','concentration','decisions','determination','flair','leadership','offTheBall','positioning','teamwork','vision','workRate'];
+    const physColKeys = ['acceleration','agility','balance','jumpingReach','naturalFitness','pace','stamina','strength'];
+
+    const col1Keys = isGk ? gkColKeys : techColKeys;
+    const col2Keys = mentalColKeys;
+    const col3Keys = physColKeys;
+
+    const renderOcrRow = (key) => {
+      const val = data.attributes[key] !== undefined ? data.attributes[key] : '';
+      const label = key.replace(/([A-Z])/g, ' $1');
+      return `
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 3px 6px; background: #030617; border-radius: 4px; margin-bottom: 3px; border: 1px solid #16204c;">
+          <span style="color: #cbd5e1; font-size: 0.75rem; text-transform: capitalize; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 110px;" title="${label}">
+            ${label}
+          </span>
+          <input 
+            type="number" 
+            class="ocr-attr-edit-input" 
+            data-attr="${key}" 
+            value="${val}" 
+            placeholder="—"
+            min="1" 
+            max="99" 
+            style="width: 40px; background: #070b28; border: 1px solid #38bdf8; border-radius: 3px; color: #facc15; font-weight: 800; text-align: center; font-size: 0.78rem; padding: 1px 0;"
+          />
+        </div>
+      `;
+    };
+
     resultsArea.innerHTML = `
-      <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #1c2b66; padding-bottom: 8px; margin-bottom: 8px;">
+      <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #1c2b66; padding-bottom: 8px; margin-bottom: 10px;">
         <div>
-          <span style="font-size: 0.86rem; font-weight: 800; color: #ffffff;">
-            Extracted Attributes (Editable Review):
+          <span style="font-size: 0.88rem; font-weight: 800; color: #ffffff;">
+            Attributes Review Matrix (1–99 Scale):
           </span>
           <div style="font-size: 0.73rem; color: #94a3b8;">
-            Converted to 1–99 scale. You can edit any numbers below before applying.
+            Directly adjust any values in the columns below before applying.
           </div>
         </div>
         <span style="background: rgba(74, 222, 128, 0.15); color: #4ade80; border: 1px solid rgba(74, 222, 128, 0.4); border-radius: 4px; padding: 2px 8px; font-size: 0.78rem; font-weight: 700;">
-          ✅ ${attrCount} Attributes Found
+          ✅ ${attrCount} Attributes Extracted
         </span>
       </div>
 
-      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 6px; font-size: 0.75rem; max-height: 220px; overflow-y: auto; padding-right: 4px;">
-        ${entries.map(([k, v]) => `
-          <div style="background: #030617; padding: 4px 8px; border-radius: 4px; border: 1px solid #16204c; display: flex; align-items: center; justify-content: space-between; gap: 6px;">
-            <span style="color: #cbd5e1; text-transform: capitalize; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-              ${k.replace(/([A-Z])/g, ' $1')}
-            </span>
-            <input 
-              type="number" 
-              class="ocr-attr-edit-input" 
-              data-attr="${k}" 
-              value="${v}" 
-              min="1" 
-              max="99" 
-              style="width: 42px; background: #080c30; border: 1px solid #38bdf8; border-radius: 4px; color: #facc15; font-weight: 800; text-align: center; font-size: 0.8rem; padding: 2px 0;"
-            />
+      <!-- 3-Column FM Review Grid -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; max-height: 270px; overflow-y: auto; padding-right: 4px;">
+        <!-- Column 1 -->
+        <div style="background: #05081c; border: 1px solid #16204c; border-radius: 6px; padding: 8px;">
+          <div style="font-size: 0.78rem; font-weight: 800; color: #38bdf8; margin-bottom: 6px; border-bottom: 1px solid #16204c; padding-bottom: 3px;">
+            ${isGk ? 'Goalkeeping' : 'Technical'}
           </div>
-        `).join('')}
+          ${col1Keys.map(renderOcrRow).join('')}
+        </div>
+
+        <!-- Column 2 -->
+        <div style="background: #05081c; border: 1px solid #16204c; border-radius: 6px; padding: 8px;">
+          <div style="font-size: 0.78rem; font-weight: 800; color: #c084fc; margin-bottom: 6px; border-bottom: 1px solid #16204c; padding-bottom: 3px;">
+            Mental
+          </div>
+          ${col2Keys.map(renderOcrRow).join('')}
+        </div>
+
+        <!-- Column 3 -->
+        <div style="background: #05081c; border: 1px solid #16204c; border-radius: 6px; padding: 8px;">
+          <div style="font-size: 0.78rem; font-weight: 800; color: #4ade80; margin-bottom: 6px; border-bottom: 1px solid #16204c; padding-bottom: 3px;">
+            Physical
+          </div>
+          ${col3Keys.map(renderOcrRow).join('')}
+        </div>
       </div>
 
       <details style="margin-top: 8px; font-size: 0.74rem; color: #64748b;">
@@ -2155,8 +2252,12 @@ export function openScreenshotOcrModal({ player, isGk, onApply }) {
     resultsArea.querySelectorAll('.ocr-attr-edit-input').forEach(inp => {
       inp.oninput = () => {
         const attrKey = inp.getAttribute('data-attr');
-        const num = Math.min(99, Math.max(1, Number(inp.value) || 50));
-        parsedOcrData.attributes[attrKey] = num;
+        if (inp.value.trim() === '') {
+          delete parsedOcrData.attributes[attrKey];
+        } else {
+          const num = Math.min(99, Math.max(1, Number(inp.value) || 50));
+          parsedOcrData.attributes[attrKey] = num;
+        }
       };
     });
 
@@ -2178,3 +2279,4 @@ export function openScreenshotOcrModal({ player, isGk, onApply }) {
     onApply(parsedOcrData);
   };
 }
+
