@@ -263,6 +263,9 @@ export function openAddMatchModal(matchToEdit = null) {
   let goalscorersList = matchToEdit?.goalscorers ? JSON.parse(JSON.stringify(matchToEdit.goalscorers)) : [];
   let assistersList = matchToEdit?.assisters ? JSON.parse(JSON.stringify(matchToEdit.assisters)) : [];
 
+  // Substitutes In: { playerInId, minuteOn, playerOutId }
+  let subsList = matchToEdit?.subs ? JSON.parse(JSON.stringify(matchToEdit.subs)) : [];
+
   // Dynamic state values
   let curDate = defaultDate;
   let curGw = defaultGw;
@@ -310,11 +313,23 @@ export function openAddMatchModal(matchToEdit = null) {
       const p = squad.find(sq => sq.id === pId);
       if (p) assistersList.push({ playerId: pId, name: p.name, count });
     });
+
+    // Collect subs
+    subsList = [];
+    modalRoot.querySelectorAll('#subs-container [data-s-idx]').forEach(row => {
+      const playerInId = Number(row.querySelector('.select-sub-in')?.value);
+      const minuteOn = Number(row.querySelector('.input-sub-minute')?.value) || 60;
+      const playerOutId = Number(row.querySelector('.select-sub-out')?.value);
+      if (playerInId) subsList.push({ playerInId, minuteOn, playerOutId });
+    });
   };
 
   const renderModalContent = () => {
+    // Build starter options (only squad players in lineup)
+    const starterOptions = squad.filter(p => selectedLineup.has(p.id));
+
     modalRoot.innerHTML = `
-      <div class="modal-window" style="max-width: 620px; max-height: 90vh; display: flex; flex-direction: column;">
+      <div class="modal-window" style="max-width: 640px; max-height: 90vh; display: flex; flex-direction: column;">
         <div class="modal-header">
           <div class="modal-title">
             <i class="fa-solid fa-futbol" style="color: #38bdf8;"></i>
@@ -323,10 +338,11 @@ export function openAddMatchModal(matchToEdit = null) {
           <button class="modal-close-btn" id="btn-close-match-modal" type="button">&times;</button>
         </div>
 
-        <div class="modal-body" style="overflow-y: auto; flex: 1; padding: 18px 22px; gap: 16px;">
+        <div class="modal-body" style="overflow-y: auto; flex: 1; padding: 18px 22px; gap: 16px; display: flex; flex-direction: column;">
+
           <!-- Row 1: Competition, Gameweek, Date -->
-          <div style="display: grid; grid-template-columns: 1.4fr 0.8fr 1fr; gap: 10px;">
-            <div class="form-group">
+          <div style="display: grid; grid-template-columns: 1.4fr 0.8fr 1fr; gap: 10px; align-items: end;">
+            <div class="form-group" style="margin: 0;">
               <label class="form-label">Competition</label>
               <select id="match-comp" class="form-select">
                 <option value="Premier League" ${curComp === 'Premier League' ? 'selected' : ''}>Premier League</option>
@@ -336,41 +352,45 @@ export function openAddMatchModal(matchToEdit = null) {
                 <option value="Friendly" ${curComp === 'Friendly' ? 'selected' : ''}>Club Friendly</option>
               </select>
             </div>
-            <div class="form-group">
+            <div class="form-group" style="margin: 0;">
               <label class="form-label">Gameweek / Rd</label>
               <input type="number" id="match-gw" class="form-input" value="${curGw}" min="1" max="60" />
             </div>
-            <div class="form-group">
+            <div class="form-group" style="margin: 0;">
               <label class="form-label">Match Date</label>
               <input type="text" id="match-date" class="form-input" value="${curDate}" placeholder="DD/MM/YYYY" />
             </div>
           </div>
 
-          <!-- Row 2: Teams & Scores -->
-          <div style="display: grid; grid-template-columns: 1fr 70px 70px 1fr; gap: 8px; align-items: flex-end; background: #070a24; padding: 12px; border-radius: 8px; border: 1px solid #1c2766;">
-            <div class="form-group">
-              <label class="form-label" style="color: #38bdf8; font-weight: 700;">Home Team</label>
-              <input type="text" id="match-home" class="form-input" value="${curHome}" required />
-            </div>
-            <div class="form-group">
-              <label class="form-label" style="text-align: center; font-weight: 700;">Score</label>
-              <input type="number" id="match-hscore" class="form-input" value="${curHScore}" min="0" style="text-align: center; font-weight: 900; font-size: 1.25rem; color: #fbbf24; padding: 4px;" />
-            </div>
-            <div class="form-group">
-              <label class="form-label" style="text-align: center; font-weight: 700;">Score</label>
-              <input type="number" id="match-ascore" class="form-input" value="${curAScore}" min="0" style="text-align: center; font-weight: 900; font-size: 1.25rem; color: #fbbf24; padding: 4px;" />
-            </div>
-            <div class="form-group">
-              <label class="form-label" style="color: #38bdf8; font-weight: 700;">Away Team</label>
-              <input type="text" id="match-away" class="form-input" value="${curAway}" required />
+          <!-- Row 2: Teams & Scores — fixed parallel grid -->
+          <div style="background: #070a24; padding: 14px 12px; border-radius: 8px; border: 1px solid #1c2766;">
+            <div style="display: grid; grid-template-columns: 1fr 72px 72px 1fr; gap: 8px; align-items: end;">
+              <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label class="form-label" style="color: #38bdf8; font-weight: 700; margin: 0;">Home Team</label>
+                <input type="text" id="match-home" class="form-input" value="${curHome}" required style="margin: 0;" />
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label class="form-label" style="text-align: center; font-weight: 700; margin: 0;">Score</label>
+                <input type="number" id="match-hscore" class="form-input" value="${curHScore}" min="0"
+                  style="text-align: center; font-weight: 900; font-size: 1.25rem; color: #fbbf24; padding: 4px; margin: 0;" />
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label class="form-label" style="text-align: center; font-weight: 700; margin: 0;">Score</label>
+                <input type="number" id="match-ascore" class="form-input" value="${curAScore}" min="0"
+                  style="text-align: center; font-weight: 900; font-size: 1.25rem; color: #fbbf24; padding: 4px; margin: 0;" />
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label class="form-label" style="color: #38bdf8; font-weight: 700; margin: 0;">Away Team</label>
+                <input type="text" id="match-away" class="form-input" value="${curAway}" required style="margin: 0;" />
+              </div>
             </div>
           </div>
 
-          <!-- Section 3: Match Lineup & Appearances (Directly updates Squad and Analytics!) -->
-          <div class="form-group">
+          <!-- Section 3: Match Lineup & Appearances -->
+          <div class="form-group" style="margin: 0;">
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
-              <label class="form-label" style="font-weight: 800; color: #38bdf8; font-size: 0.85rem;">
-                <i class="fa-solid fa-users"></i> Team Lineup (${selectedLineup.size} Players Selected)
+              <label class="form-label" style="font-weight: 800; color: #38bdf8; font-size: 0.85rem; margin: 0;">
+                <i class="fa-solid fa-users"></i> Starting Lineup (${selectedLineup.size} Selected)
               </label>
               <button type="button" id="btn-quick-starting-11" style="background: #102048; border: 1px solid #233772; color: #38bdf8; padding: 3px 10px; border-radius: 4px; font-size: 0.72rem; font-weight: 800; cursor: pointer;">
                 Select Top 11
@@ -379,7 +399,6 @@ export function openAddMatchModal(matchToEdit = null) {
             <div style="font-size: 0.72rem; color: #cbd5e1; margin-bottom: 6px;">
               Every checked player will automatically receive <strong>+1 Match Appearance</strong> in the <strong>Squad</strong> and <strong>Data Analytics</strong> tables.
             </div>
-
             <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(135px, 1fr)); gap: 6px; max-height: 140px; overflow-y: auto; background: #05071a; padding: 8px; border-radius: 6px; border: 1px solid #16204e;">
               ${squad.map(p => {
                 const isChecked = selectedLineup.has(p.id);
@@ -394,10 +413,50 @@ export function openAddMatchModal(matchToEdit = null) {
             </div>
           </div>
 
-          <!-- Section 4: Goalscorers -->
-          <div class="form-group">
+          <!-- Section 4: Substitutes In (with playtime tracking) -->
+          <div class="form-group" style="margin: 0;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+              <label class="form-label" style="font-weight: 800; color: #fb923c; font-size: 0.85rem; margin: 0;">
+                <i class="fa-solid fa-arrows-left-right"></i> Substitutes In
+                <span style="font-size: 0.7rem; color: #94a3b8; font-weight: 400; margin-left: 6px;">— tracks each player's minutes played in Analytics</span>
+              </label>
+              <button type="button" id="btn-add-sub-row" style="background: #102048; border: 1px solid #233772; color: #fb923c; padding: 3px 10px; border-radius: 4px; font-size: 0.72rem; font-weight: 800; cursor: pointer;">
+                + Add Sub
+              </button>
+            </div>
+            <div style="font-size: 0.7rem; color: #64748b; margin-bottom: 6px;">
+              <span style="color: #fb923c; font-weight: 700;">Sub In</span> = player coming on &nbsp;|&nbsp;
+              <span style="color: #94a3b8; font-weight: 700;">Min</span> = minute substitution happened (1–90) &nbsp;|&nbsp;
+              <span style="color: #ef4444; font-weight: 700;">Replaced</span> = player going off
+            </div>
+            <div id="subs-container" style="display: flex; flex-direction: column; gap: 6px;">
+              ${subsList.length === 0 ? `
+                <div style="font-size: 0.72rem; color: #64748b; font-style: italic;">No substitutes recorded. Click "+ Add Sub" to track a substitution and calculate playtime.</div>
+              ` : subsList.map((s, idx) => `
+                <div style="display: grid; grid-template-columns: 1fr 56px 1fr 28px; gap: 6px; align-items: center;" data-s-idx="${idx}">
+                  <select class="form-select select-sub-in" style="padding: 5px 8px; font-size: 0.78rem; border: 1px solid #fb923c40;" title="Player coming on">
+                    ${squad.filter(p => !selectedLineup.has(p.id)).map(p => `
+                      <option value="${p.id}" ${Number(p.id) === Number(s.playerInId) ? 'selected' : ''}>#${p.num || p.number || '—'} ${p.name.split(' ').pop()} (${p.pos})</option>
+                    `).join('')}
+                  </select>
+                  <input type="number" class="form-input input-sub-minute" value="${s.minuteOn || 60}" min="1" max="90"
+                    style="text-align: center; font-weight: 800; padding: 5px 4px; color: #fb923c; font-size: 0.85rem;" title="Minute substitution happened" />
+                  <select class="form-select select-sub-out" style="padding: 5px 8px; font-size: 0.78rem; border: 1px solid #ef444440;" title="Player going off">
+                    ${starterOptions.map(p => `
+                      <option value="${p.id}" ${Number(p.id) === Number(s.playerOutId) ? 'selected' : ''}>#${p.num || p.number || '—'} ${p.name.split(' ').pop()} (${p.pos})</option>
+                    `).join('')}
+                  </select>
+                  <button type="button" class="btn-remove-sub" data-idx="${idx}"
+                    style="background: #dc2626; color: white; border: none; border-radius: 4px; width: 28px; height: 28px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.85rem;">&times;</button>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Section 5: Goalscorers -->
+          <div class="form-group" style="margin: 0;">
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
-              <label class="form-label" style="font-weight: 800; color: #4ade80; font-size: 0.85rem;">
+              <label class="form-label" style="font-weight: 800; color: #4ade80; font-size: 0.85rem; margin: 0;">
                 <i class="fa-solid fa-futbol"></i> Goalscorers (Auto-adds Goals to Player Stats)
               </label>
               <button type="button" id="btn-add-goalscorer-row" style="background: #102048; border: 1px solid #233772; color: #4ade80; padding: 3px 10px; border-radius: 4px; font-size: 0.72rem; font-weight: 800; cursor: pointer;">
@@ -421,10 +480,10 @@ export function openAddMatchModal(matchToEdit = null) {
             </div>
           </div>
 
-          <!-- Section 5: Assisters -->
-          <div class="form-group">
+          <!-- Section 6: Assisters -->
+          <div class="form-group" style="margin: 0;">
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
-              <label class="form-label" style="font-weight: 800; color: #38bdf8; font-size: 0.85rem;">
+              <label class="form-label" style="font-weight: 800; color: #38bdf8; font-size: 0.85rem; margin: 0;">
                 <i class="fa-solid fa-handshake-angle"></i> Assisters (Auto-adds Assists to Player Stats)
               </label>
               <button type="button" id="btn-add-assister-row" style="background: #102048; border: 1px solid #233772; color: #38bdf8; padding: 3px 10px; border-radius: 4px; font-size: 0.72rem; font-weight: 800; cursor: pointer;">
@@ -486,6 +545,32 @@ export function openAddMatchModal(matchToEdit = null) {
       };
     }
 
+    // Add Sub Row
+    const btnAddSub = modalRoot.querySelector('#btn-add-sub-row');
+    if (btnAddSub) {
+      btnAddSub.onclick = () => {
+        syncStateFromDOM();
+        const bench = squad.filter(p => !selectedLineup.has(p.id));
+        const starters = squad.filter(p => selectedLineup.has(p.id));
+        if (bench.length > 0 && starters.length > 0) {
+          subsList.push({ playerInId: bench[0].id, minuteOn: 60, playerOutId: starters[0].id });
+          renderModalContent();
+        } else {
+          showToast('Need bench players & starters to add a substitution.', 'info');
+        }
+      };
+    }
+
+    // Remove Sub Row
+    modalRoot.querySelectorAll('.btn-remove-sub').forEach(btn => {
+      btn.onclick = () => {
+        syncStateFromDOM();
+        const idx = Number(btn.getAttribute('data-idx'));
+        subsList.splice(idx, 1);
+        renderModalContent();
+      };
+    });
+
     // Add Goalscorer Row
     const btnAddScorer = modalRoot.querySelector('#btn-add-goalscorer-row');
     if (btnAddScorer) {
@@ -536,6 +621,28 @@ export function openAddMatchModal(matchToEdit = null) {
       btnSave.onclick = () => {
         syncStateFromDOM();
 
+        // Calculate player minutes:
+        // Starters play from 0 until they're subbed off (or 90)
+        // Subs play from minuteOn until 90
+        const playerMinutes = {};
+        const lineupArr = Array.from(selectedLineup);
+
+        // All starters default to 90 mins
+        lineupArr.forEach(pId => { playerMinutes[pId] = 90; });
+
+        // Apply substitutions
+        subsList.forEach(sub => {
+          const min = Math.max(1, Math.min(90, Number(sub.minuteOn) || 60));
+          // Player going OFF: played from 0 to minuteOn
+          if (sub.playerOutId && playerMinutes[sub.playerOutId] !== undefined) {
+            playerMinutes[sub.playerOutId] = min;
+          }
+          // Player coming ON: played from minuteOn to 90
+          if (sub.playerInId) {
+            playerMinutes[sub.playerInId] = 90 - min;
+          }
+        });
+
         const payload = {
           gameweek: curGw,
           date: curDate,
@@ -545,17 +652,19 @@ export function openAddMatchModal(matchToEdit = null) {
           away: curAway.trim() || 'Opponent',
           competition: curComp,
           status: 'FT',
-          lineup: Array.from(selectedLineup),
+          lineup: lineupArr,
+          subs: subsList,
+          playerMinutes,
           goalscorers: goalscorersList,
           assisters: assistersList
         };
 
         if (isEdit) {
           store.updateMatchResult(matchToEdit.id, payload);
-          showToast(`Match GW ${curGw} updated! Squad appearances & analytics recalculated.`);
+          showToast(`Match GW ${curGw} updated! Appearances, playtime & analytics recalculated.`);
         } else {
           store.addMatchResult(payload);
-          showToast(`Match recorded! Lineup appearances, goals, and analytics updated.`);
+          showToast(`Match recorded! Lineup, playtime, goals & analytics updated.`);
         }
 
         closeModal();

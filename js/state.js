@@ -415,7 +415,8 @@ class StateStore {
           cleanSheets: 0,
           yel: 0,
           red: 0,
-          pom: 0
+          pom: 0,
+          totalMins: 0
         })),
         tactics: JSON.parse(JSON.stringify(base.tactics || {})),
         transfers: [],
@@ -624,6 +625,8 @@ class StateStore {
       competition: match.competition || this.leagueName || 'Premier League',
       status: 'FT',
       lineup: match.lineup || [],
+      subs: match.subs || [],
+      playerMinutes: match.playerMinutes || {},
       goalscorers: match.goalscorers || [],
       assisters: match.assisters || []
     };
@@ -632,17 +635,33 @@ class StateStore {
 
     // Apply Player Stats increments to Squad
     if (Array.isArray(season.squad)) {
-      // 1. Appearances
-      if (Array.isArray(newMatch.lineup) && newMatch.lineup.length > 0) {
-        const lineupSet = new Set(newMatch.lineup.map(Number));
+      // 1. Appearances (starters + subs coming on)
+      const allParticipants = new Set(newMatch.lineup.map(Number));
+      (newMatch.subs || []).forEach(s => { if (s.playerInId) allParticipants.add(Number(s.playerInId)); });
+      season.squad.forEach(p => {
+        if (allParticipants.has(Number(p.id))) {
+          p.apps = (Number(p.apps) || 0) + 1;
+        }
+      });
+
+      // 2. Accumulate minutes played (totalMins)
+      const pm = newMatch.playerMinutes || {};
+      if (Object.keys(pm).length > 0) {
         season.squad.forEach(p => {
-          if (lineupSet.has(Number(p.id))) {
-            p.apps = (Number(p.apps) || 0) + 1;
+          const mins = pm[p.id] !== undefined ? Number(pm[p.id]) : pm[String(p.id)] !== undefined ? Number(pm[String(p.id)]) : null;
+          if (mins !== null && mins > 0) {
+            p.totalMins = (Number(p.totalMins) || 0) + mins;
           }
+        });
+      } else {
+        // Fallback: starters get 90 min each if no playerMinutes data
+        new Set(newMatch.lineup.map(Number)).forEach(pid => {
+          const p = season.squad.find(sq => sq.id === pid);
+          if (p) p.totalMins = (Number(p.totalMins) || 0) + 90;
         });
       }
 
-      // 2. Goalscorers
+      // 3. Goalscorers
       if (Array.isArray(newMatch.goalscorers)) {
         newMatch.goalscorers.forEach(g => {
           const p = season.squad.find(sq => sq.id === Number(g.playerId));
@@ -652,7 +671,7 @@ class StateStore {
         });
       }
 
-      // 3. Assisters
+      // 4. Assisters
       if (Array.isArray(newMatch.assisters)) {
         newMatch.assisters.forEach(a => {
           const p = season.squad.find(sq => sq.id === Number(a.playerId));
@@ -662,7 +681,7 @@ class StateStore {
         });
       }
 
-      // 4. Clean Sheets
+      // 5. Clean Sheets
       const isHomeUser = newMatch.home.toLowerCase().includes('man utd') || newMatch.home.toLowerCase().includes((this.clubName || '').toLowerCase());
       const conceded = isHomeUser ? newMatch.awayScore : newMatch.homeScore;
       if (conceded === 0 && Array.isArray(newMatch.lineup)) {

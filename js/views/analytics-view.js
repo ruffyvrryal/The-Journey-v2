@@ -51,6 +51,23 @@ export function renderAnalyticsView(container) {
   const topRated = sortedByRating[0] || { name: '—', rat: 7.0 };
   const topApps = sortedByApps[0] || { name: '—', apps: 0 };
 
+  // Compute each player's total season minutes from all match playerMinutes records (for backward compat)
+  const minutesMap = {};
+  results.forEach(m => {
+    const pm = m.playerMinutes || {};
+    Object.entries(pm).forEach(([pid, mins]) => {
+      const numId = Number(pid);
+      minutesMap[numId] = (minutesMap[numId] || 0) + Number(mins);
+    });
+    // Fallback: if no playerMinutes, count starters as 90 mins each
+    if (Object.keys(pm).length === 0 && Array.isArray(m.lineup)) {
+      m.lineup.forEach(pid => {
+        const numId = Number(pid);
+        minutesMap[numId] = (minutesMap[numId] || 0) + 90;
+      });
+    }
+  });
+
   const renderTableBody = () => {
     const tableBodyEl = container.querySelector('#analytics-players-tbody');
     if (!tableBodyEl) return;
@@ -90,6 +107,11 @@ export function renderAnalyticsView(container) {
         valA = (a.pos || '').toLowerCase();
         valB = (b.pos || '').toLowerCase();
         return currentSortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+      } else if (currentSortField === 'totalMins') {
+        valA = minutesMap[Number(a.id)] ?? (Number(a.totalMins) || 0);
+        valB = minutesMap[Number(b.id)] ?? (Number(b.totalMins) || 0);
+        valA = Number(valA);
+        valB = Number(valB);
       } else {
         valA = Number(valA) || 0;
         valB = Number(valB) || 0;
@@ -101,7 +123,7 @@ export function renderAnalyticsView(container) {
     if (list.length === 0) {
       tableBodyEl.innerHTML = `
         <tr>
-          <td colspan="12" style="text-align: center; padding: 24px; color: #64748b;">
+          <td colspan="13" style="text-align: center; padding: 24px; color: #64748b;">
             No players found matching current filters.
           </td>
         </tr>
@@ -121,6 +143,7 @@ export function renderAnalyticsView(container) {
       const red = Number(p.red) || 0;
       const cs = Number(p.cleanSheets) || 0;
       const posBadgeClass = getPositionBadgeClass(p.pos);
+      const mins = minutesMap[Number(p.id)] ?? (Number(p.totalMins) || 0);
 
       return `
         <tr class="analytics-player-row" data-id="${p.id}" style="cursor: pointer; transition: background 0.15s ease;" title="Click to view & edit ${p.name}'s profile">
@@ -152,6 +175,11 @@ export function renderAnalyticsView(container) {
           <!-- Appearances -->
           <td style="text-align: center; font-weight: 800; color: #ffffff;">
             ${apps}
+          </td>
+
+          <!-- Minutes Played -->
+          <td style="text-align: center; font-weight: 800; color: ${mins > 0 ? '#fb923c' : '#64748b'};">
+            ${mins > 0 ? `<span title="${mins} minutes played" style="font-size: 0.78rem;">${mins}'</span>` : `<span style="color: #374151;">—</span>`}
           </td>
 
           <!-- Goals -->
@@ -354,8 +382,11 @@ export function renderAnalyticsView(container) {
                 <th class="sortable-th" data-sort="pos" style="width: 65px; text-align: center; cursor: pointer;">
                   Pos <span class="sort-icon">${currentSortField === 'pos' ? (currentSortAsc ? '▲' : '▼') : ''}</span>
                 </th>
-                <th class="sortable-th" data-sort="apps" style="width: 70px; text-align: center; cursor: pointer;" title="Appearances in Matches">
+                <th class="sortable-th" data-sort="apps" style="width: 60px; text-align: center; cursor: pointer;" title="Appearances in Matches">
                   Apps <span class="sort-icon">${currentSortField === 'apps' ? (currentSortAsc ? '▲' : '▼') : ''}</span>
+                </th>
+                <th class="sortable-th" data-sort="totalMins" style="width: 65px; text-align: center; cursor: pointer;" title="Total Minutes Played">
+                  Mins <span class="sort-icon">${currentSortField === 'totalMins' ? (currentSortAsc ? '▲' : '▼') : ''}</span>
                 </th>
                 <th class="sortable-th" data-sort="goals" style="width: 65px; text-align: center; cursor: pointer;" title="Season Goals">
                   Goals <span class="sort-icon">${currentSortField === 'goals' ? (currentSortAsc ? '▲' : '▼') : ''}</span>
