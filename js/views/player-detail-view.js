@@ -395,6 +395,9 @@ export function renderPlayerDetailView(container, playerId) {
         <div class="attributes-card-header">
           <div class="attr-header-title">Attributes</div>
           <div class="attr-header-actions">
+            <button type="button" class="btn-import-link" id="btn-import-fminside-link" title="Import player attributes from an FMInside URL">
+              <i class="fa-solid fa-link"></i> Import from FMInside
+            </button>
             <button type="button" class="btn-import-attrs" id="btn-import-player-attrs" title="Import attributes from JSON file or text">
               <i class="fa-solid fa-file-import"></i> Import JSON
             </button>
@@ -790,6 +793,44 @@ export function renderPlayerDetailView(container, playerId) {
     return count;
   };
 
+  // Bind Import from FMInside Link Button
+  const btnImportLink = container.querySelector('#btn-import-fminside-link');
+  if (btnImportLink) {
+    btnImportLink.onclick = () => {
+      openFmInsideImportModal({
+        player,
+        isGk,
+        onApply: (data) => {
+          if (data.attributes) {
+            applyImportedAttributes(data.attributes);
+          }
+          if (data.name && container.querySelector('#edit-player-name')) {
+            container.querySelector('#edit-player-name').value = data.name;
+          }
+          if (data.pos && container.querySelector('#edit-player-pos')) {
+            container.querySelector('#edit-player-pos').value = data.pos;
+          }
+          if (data.age && container.querySelector('#edit-player-age')) {
+            container.querySelector('#edit-player-age').value = data.age;
+          }
+          if (data.nat && container.querySelector('#edit-player-nat')) {
+            container.querySelector('#edit-player-nat').value = data.nat;
+            const flagPreview = container.querySelector('#player-bio-flag-preview');
+            if (flagPreview) flagPreview.innerHTML = getCountryFlag(data.nat).flagHtml;
+          }
+          if (data.photo) {
+            currentPhoto = data.photo;
+            const photoFrameEl = container.querySelector('#photo-frame-clickable');
+            if (photoFrameEl) {
+              photoFrameEl.innerHTML = `<img src="${currentPhoto}" alt="${player.name}" class="player-profile-img" id="player-profile-img" />`;
+            }
+          }
+          showToast(`⚡ FMInside data applied for ${data.name || player.name}! Remember to save.`);
+        }
+      });
+    };
+  }
+
   // Bind Import Attributes JSON Button (Modal & File picker)
   const btnImportAttrs = container.querySelector('#btn-import-player-attrs');
   const fileInputAttrs = container.querySelector('#input-player-attrs-json');
@@ -1126,4 +1167,382 @@ function openAttributesImportModal({ isGk, playerName, onApply }) {
     onApply(parsed);
   };
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+// FMINSIDE LINK IMPORTER & HTML PARSER
+// ────────────────────────────────────────────────────────────────────────────
+
+export function parseFmInsideHtml(html, url = '') {
+  const result = {
+    attributes: {},
+    name: null,
+    pos: null,
+    nat: null,
+    age: null,
+    photo: null
+  };
+
+  if (!html || typeof html !== 'string') return result;
+
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+
+    // 1. Player Name
+    const h1 = doc.querySelector('h1');
+    if (h1 && h1.textContent.trim()) {
+      result.name = h1.textContent.trim().replace(/\s+/g, ' ');
+    } else {
+      const ogTitle = doc.querySelector('meta[property="og:title"]');
+      if (ogTitle && ogTitle.content) {
+        result.name = ogTitle.content.split('-')[0].trim();
+      } else if (url) {
+        const slug = url.split('/').pop().replace(/^[0-9]+-/, '').replace(/-/g, ' ');
+        if (slug) {
+          result.name = slug.replace(/\b\w/g, l => l.toUpperCase());
+        }
+      }
+    }
+
+    // 2. Photo
+    const ogImg = doc.querySelector('meta[property="og:image"]');
+    if (ogImg && ogImg.content && !ogImg.content.includes('default') && !ogImg.content.includes('logo')) {
+      result.photo = ogImg.content;
+    } else {
+      const faceImg = doc.querySelector('img[src*="faces"], img[src*="players"], img[src*="cuts"]');
+      if (faceImg && faceImg.src) {
+        result.photo = faceImg.src;
+      }
+    }
+
+    // 3. Nationality
+    const natImg = doc.querySelector('img[src*="flags"], img[alt*="flag" i], [class*="flag"]');
+    if (natImg) {
+      const natName = natImg.getAttribute('alt') || natImg.getAttribute('title') || '';
+      if (natName) {
+        const country = getCountryFlag(natName);
+        if (country) result.nat = country.code;
+      }
+    }
+
+    // 4. Age
+    const ageMatch = html.match(/(?:Age|Leeftijd|Edad|Âge)[\s:<>/a-zA-Z="]+([0-9]{2})/i);
+    if (ageMatch && Number(ageMatch[1]) >= 15 && Number(ageMatch[1]) <= 45) {
+      result.age = Number(ageMatch[1]);
+    }
+
+    // 5. Position
+    const posMatch = html.match(/(?:Position|Positie|Posici[oó]n)[\s:<>/a-zA-Z="]+(GK|DC|DL|DR|CB|LB|RB|DM|MC|CM|AMC|CAM|AML|AMR|LW|RW|ST|CF|AF)/i);
+    if (posMatch) {
+      result.pos = posMatch[1].toUpperCase();
+    }
+
+    // 6. Attributes Extraction via Table / Rows / Elements
+    const elements = doc.querySelectorAll('tr, .attribute, .stat, li, dd, dt');
+    elements.forEach(el => {
+      const text = el.textContent.trim();
+      const match = text.match(/([a-zA-Z\s\(\)]+)\s*[:\t\n]?\s*([0-9]{1,2})$/);
+      if (match) {
+        const rawName = match[1].trim();
+        const rawVal = Number(match[2]);
+        if (!isNaN(rawVal) && rawVal >= 1 && rawVal <= 20) {
+          const cleanKey = rawName.toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ');
+          const key = ATTR_KEY_ALIASES[cleanKey];
+          if (key && result.attributes[key] === undefined) {
+            result.attributes[key] = Math.min(99, Math.max(1, Math.round((rawVal / 20) * 99)));
+          }
+        }
+      }
+    });
+
+    // 7. Full Text Regex Scanning for any missed attributes
+    const fullText = doc.body ? doc.body.textContent : html;
+    const allAttrNames = [
+      'Aerial Reach', 'Command of Area', 'Communication', 'Eccentricity', 'Handling', 'Kicking',
+      'One on Ones', '1 on 1', 'Reflexes', 'Rushing Out', 'Punching', 'Throwing',
+      'Crossing', 'Dribbling', 'Finishing', 'First Touch', 'Free Kick Taking', 'Free Kicks',
+      'Heading', 'Long Shots', 'Long Throws', 'Marking', 'Passing', 'Penalty Taking', 'Penalties',
+      'Tackling', 'Technique', 'Corners',
+      'Aggression', 'Anticipation', 'Bravery', 'Composure', 'Concentration', 'Decisions',
+      'Determination', 'Flair', 'Leadership', 'Off the Ball', 'Positioning', 'Teamwork', 'Vision', 'Work Rate',
+      'Acceleration', 'Agility', 'Balance', 'Jumping Reach', 'Natural Fitness', 'Pace', 'Stamina', 'Strength'
+    ];
+
+    allAttrNames.forEach(attrName => {
+      const cleanKey = attrName.toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ');
+      const key = ATTR_KEY_ALIASES[cleanKey];
+      if (key && result.attributes[key] === undefined) {
+        const escaped = attrName.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+        const rgx = new RegExp(`(?:^|[>\\s\\n\\t])${escaped}[^a-zA-Z0-9]{1,30}?([0-9]{1,2})(?:[^0-9]|$)`, 'i');
+        const match = fullText.match(rgx);
+        if (match) {
+          const num = Number(match[1]);
+          if (!isNaN(num) && num >= 1 && num <= 20) {
+            result.attributes[key] = Math.min(99, Math.max(1, Math.round((num / 20) * 99)));
+          }
+        }
+      }
+    });
+
+  } catch (err) {
+    console.error('FMInside HTML parse error:', err);
+  }
+
+  return result;
+}
+
+export function openFmInsideImportModal({ player, isGk, onApply }) {
+  const existing = document.getElementById('fminside-import-modal-root');
+  if (existing) existing.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'fminside-import-modal-root';
+  modal.className = 'modal-backdrop';
+  modal.style.cssText = 'z-index: 9999;';
+
+  modal.innerHTML = `
+    <div class="modal-window" style="max-width: 680px; max-height: 90vh; display: flex; flex-direction: column;">
+      <div class="modal-header">
+        <div class="modal-title">
+          <i class="fa-solid fa-link" style="color: #c084fc;"></i>
+          Import from FMInside — ${player.name}
+        </div>
+        <button class="modal-close-btn" id="btn-close-fminside-modal" type="button">&times;</button>
+      </div>
+
+      <div class="modal-body" style="padding: 16px 20px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto;">
+        <div style="font-size: 0.84rem; color: #94a3b8;">
+          Paste an <strong>FMInside player link</strong> below. Attributes will be automatically scraped and converted to the <strong>1–99 scale</strong>.
+        </div>
+
+        <!-- URL Input Group -->
+        <div class="form-group">
+          <label class="form-label" style="font-size: 0.8rem; color: #cbd5e1;">FMInside Player URL</label>
+          <div style="display: flex; gap: 8px;">
+            <input 
+              type="url" 
+              id="fminside-url-input" 
+              class="form-input" 
+              placeholder="e.g. https://fminside.net/players/5-fm-24/19305103-erling-haaland"
+              style="flex: 1;"
+            />
+            <button type="button" class="btn-action-primary" id="btn-fetch-fminside" style="padding: 8px 18px; font-weight: 700; white-space: nowrap;">
+              <i class="fa-solid fa-bolt"></i> Fetch & Parse
+            </button>
+          </div>
+          <div style="display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap;">
+            <span style="font-size: 0.72rem; color: #64748b;">Quick Examples:</span>
+            <button type="button" class="btn-url-example" data-url="https://fminside.net/players/5-fm-24/19305103-erling-haaland" style="background: none; border: none; color: #38bdf8; font-size: 0.72rem; cursor: pointer; text-decoration: underline;">Erling Haaland</button>
+            <button type="button" class="btn-url-example" data-url="https://fminside.net/players/5-fm-24/29215033-jude-bellingham" style="background: none; border: none; color: #38bdf8; font-size: 0.72rem; cursor: pointer; text-decoration: underline;">Jude Bellingham</button>
+            <button type="button" class="btn-url-example" data-url="https://fminside.net/players/5-fm-24/28080004-thibaut-courtois" style="background: none; border: none; color: #38bdf8; font-size: 0.72rem; cursor: pointer; text-decoration: underline;">Thibaut Courtois</button>
+          </div>
+        </div>
+
+        <!-- Options Checkboxes -->
+        <div style="background: #05081c; border: 1px solid #16204c; border-radius: 8px; padding: 10px 14px; display: flex; flex-direction: column; gap: 6px;">
+          <div style="font-size: 0.78rem; font-weight: 700; color: #e2e8f0; margin-bottom: 2px;">Import Settings</div>
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: #cbd5e1; cursor: pointer;">
+            <input type="checkbox" id="chk-import-attrs" checked /> Apply all attributes (converted to 1–99 scale)
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: #cbd5e1; cursor: pointer;">
+            <input type="checkbox" id="chk-import-bio" /> Update biographical data (Name, Age, Position, Nat)
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: #cbd5e1; cursor: pointer;">
+            <input type="checkbox" id="chk-import-photo" checked /> Update Player Facepack Photo (if found)
+          </label>
+        </div>
+
+        <!-- Parse Status & Live Preview Area -->
+        <div id="fminside-preview-area" style="display: none; background: #070b28; border: 1px solid #1c2766; border-radius: 8px; padding: 12px 14px;">
+          <!-- Injected via JS -->
+        </div>
+
+        <!-- Manual HTML / Page Text Fallback Accordion -->
+        <details style="background: #030617; border: 1px solid #121b44; border-radius: 8px; padding: 8px 12px;">
+          <summary style="font-size: 0.78rem; color: #94a3b8; cursor: pointer; font-weight: 600;">
+            🛠️ Manual Paste Fallback (if FMInside blocks proxy request)
+          </summary>
+          <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 8px;">
+            <div style="font-size: 0.74rem; color: #64748b;">
+              If direct URL fetching fails, open the FMInside player page in your browser, press <kbd>Ctrl+A</kbd> then <kbd>Ctrl+C</kbd> (or View Page Source), and paste the text/HTML here:
+            </div>
+            <textarea id="fminside-manual-textarea" class="notes-textarea" rows="5" placeholder="Paste FMInside page text or HTML here..." style="font-size: 0.76rem; font-family: monospace;"></textarea>
+            <button type="button" class="btn-action-secondary" id="btn-parse-manual-fminside" style="align-self: flex-start; font-size: 0.78rem; padding: 5px 12px;">
+              <i class="fa-solid fa-code"></i> Parse Pasted Content
+            </button>
+          </div>
+        </details>
+      </div>
+
+      <div style="padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; background: #070b24; border-top: 1px solid #1c2766; flex-shrink: 0;">
+        <button type="button" class="btn-modal-cancel" id="btn-cancel-fminside-modal">Cancel</button>
+        <button type="button" id="btn-confirm-fminside-import" class="btn-action-primary" style="padding: 10px 22px; font-weight: 800;" disabled>
+          <i class="fa-solid fa-check"></i> Apply to Profile
+        </button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  const closeModal = () => modal.remove();
+  modal.querySelector('#btn-close-fminside-modal').onclick = closeModal;
+  modal.querySelector('#btn-cancel-fminside-modal').onclick = closeModal;
+  modal.onclick = (e) => { if (e.target === modal) closeModal(); };
+
+  const urlInput = modal.querySelector('#fminside-url-input');
+  const btnFetch = modal.querySelector('#btn-fetch-fminside');
+  const previewArea = modal.querySelector('#fminside-preview-area');
+  const btnConfirm = modal.querySelector('#btn-confirm-fminside-import');
+  let parsedData = null;
+
+  // Example button clicks
+  modal.querySelectorAll('.btn-url-example').forEach(btn => {
+    btn.onclick = () => {
+      urlInput.value = btn.getAttribute('data-url');
+      btnFetch.click();
+    };
+  });
+
+  // Display parsed data preview
+  const displayPreview = (data) => {
+    parsedData = data;
+    const attrCount = Object.keys(data.attributes || {}).length;
+
+    if (attrCount === 0 && !data.name) {
+      previewArea.style.display = 'block';
+      previewArea.innerHTML = `<span style="color: #f87171;">⚠️ No player attributes could be recognized. Try pasting the page HTML in the Manual Fallback section below.</span>`;
+      btnConfirm.disabled = true;
+      return;
+    }
+
+    const sampleAttrs = Object.entries(data.attributes || {}).slice(0, 10);
+    const natFlag = data.nat ? getCountryFlag(data.nat).flagHtml : '';
+
+    previewArea.style.display = 'block';
+    previewArea.innerHTML = `
+      <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #1c2b66; padding-bottom: 8px; margin-bottom: 8px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          ${data.photo ? `<img src="${data.photo}" alt="" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 1px solid #38bdf8;" />` : ''}
+          <div>
+            <strong style="color: #ffffff; font-size: 0.9rem;">${data.name || player.name}</strong>
+            <div style="font-size: 0.75rem; color: #94a3b8; display: flex; align-items: center; gap: 6px;">
+              ${natFlag} ${data.nat || player.nat} • ${data.pos || player.pos} ${data.age ? `• ${data.age} yrs` : ''}
+            </div>
+          </div>
+        </div>
+        <span style="background: rgba(74, 222, 128, 0.15); color: #4ade80; border: 1px solid rgba(74, 222, 128, 0.4); border-radius: 4px; padding: 2px 8px; font-size: 0.78rem; font-weight: 700;">
+          ${attrCount} Attributes Found
+        </span>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 6px; font-size: 0.75rem;">
+        ${sampleAttrs.map(([k, v]) => `
+          <div style="background: #030617; padding: 4px 6px; border-radius: 4px; display: flex; justify-content: space-between;">
+            <span style="color: #cbd5e1; text-transform: capitalize;">${k.replace(/([A-Z])/g, ' $1')}</span>
+            <strong class="attr-${v >= 80 ? 'elite' : v >= 65 ? 'great' : v >= 45 ? 'good' : 'poor'}">${v}</strong>
+          </div>
+        `).join('')}
+        ${attrCount > 10 ? `<div style="color: #64748b; font-size: 0.72rem; align-self: center;">+ ${attrCount - 10} more attributes</div>` : ''}
+      </div>
+    `;
+
+    btnConfirm.disabled = false;
+  };
+
+  // Direct URL Fetch Handler
+  btnFetch.onclick = async () => {
+    const url = urlInput.value.trim();
+    if (!url) {
+      showToast('Please enter an FMInside URL', 'error');
+      return;
+    }
+
+    btnFetch.disabled = true;
+    btnFetch.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Fetching...';
+    previewArea.style.display = 'block';
+    previewArea.innerHTML = '<span style="color: #38bdf8;"><i class="fa-solid fa-spinner fa-spin"></i> Fetching player data from FMInside...</span>';
+
+    try {
+      const proxies = [
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+        `https://corsproxy.io/?${encodeURIComponent(url)}`,
+        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
+      ];
+
+      let html = null;
+      for (const proxyUrl of proxies) {
+        try {
+          const res = await fetch(proxyUrl, { cache: 'no-cache' });
+          if (res.ok) {
+            const text = await res.text();
+            if (text && text.length > 200) {
+              html = text;
+              break;
+            }
+          }
+        } catch (e) {
+          // try next proxy
+        }
+      }
+
+      if (!html) {
+        throw new Error('Could not fetch via CORS proxies. Please use the Manual Paste Fallback below.');
+      }
+
+      const result = parseFmInsideHtml(html, url);
+      displayPreview(result);
+    } catch (err) {
+      previewArea.style.display = 'block';
+      previewArea.innerHTML = `<span style="color: #f87171;">⚠️ ${err.message}</span>`;
+      btnConfirm.disabled = true;
+    } finally {
+      btnFetch.disabled = false;
+      btnFetch.innerHTML = '<i class="fa-solid fa-bolt"></i> Fetch & Parse';
+    }
+  };
+
+  // Manual Paste Handler
+  const manualTextarea = modal.querySelector('#fminside-manual-textarea');
+  const btnParseManual = modal.querySelector('#btn-parse-manual-fminside');
+  if (btnParseManual && manualTextarea) {
+    btnParseManual.onclick = () => {
+      const text = manualTextarea.value.trim();
+      if (!text) {
+        showToast('Please paste content into the manual box first', 'error');
+        return;
+      }
+      const result = parseFmInsideHtml(text, urlInput.value.trim());
+      displayPreview(result);
+    };
+  }
+
+  // Confirm and Apply to Profile
+  btnConfirm.onclick = () => {
+    if (!parsedData) return;
+
+    const shouldImportAttrs = modal.querySelector('#chk-import-attrs')?.checked;
+    const shouldImportBio = modal.querySelector('#chk-import-bio')?.checked;
+    const shouldImportPhoto = modal.querySelector('#chk-import-photo')?.checked;
+
+    const payload = {};
+
+    if (shouldImportAttrs && parsedData.attributes) {
+      payload.attributes = parsedData.attributes;
+    }
+    if (shouldImportBio) {
+      if (parsedData.name) payload.name = parsedData.name;
+      if (parsedData.pos) payload.pos = parsedData.pos;
+      if (parsedData.age) payload.age = parsedData.age;
+      if (parsedData.nat) payload.nat = parsedData.nat;
+    }
+    if (shouldImportPhoto && parsedData.photo) {
+      payload.photo = parsedData.photo;
+    }
+
+    closeModal();
+    onApply(payload);
+  };
+}
+
 
