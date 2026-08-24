@@ -394,7 +394,16 @@ export function renderPlayerDetailView(container, playerId) {
       <div class="player-attributes-card">
         <div class="attributes-card-header">
           <div class="attr-header-title">Attributes</div>
-          <div class="attr-scale-badge">1–99 scale</div>
+          <div class="attr-header-actions">
+            <button type="button" class="btn-import-attrs" id="btn-import-player-attrs" title="Import attributes from JSON file or text">
+              <i class="fa-solid fa-file-import"></i> Import JSON
+            </button>
+            <button type="button" class="btn-export-attrs" id="btn-export-player-attrs" title="Export attributes as JSON file">
+              <i class="fa-solid fa-download"></i> Export JSON
+            </button>
+            <input type="file" id="input-player-attrs-json" accept=".json,application/json" style="display:none;" />
+            <div class="attr-scale-badge">1–99 scale</div>
+          </div>
         </div>
 
         <div class="attributes-columns-grid ${isGk ? 'grid-gk' : 'grid-outfield'}">
@@ -765,6 +774,68 @@ export function renderPlayerDetailView(container, playerId) {
   if (btnSaveTop) btnSaveTop.onclick = () => handleSaveProfile(true);
   if (btnSaveBottom) btnSaveBottom.onclick = () => handleSaveProfile(true);
 
+  // Apply Attributes Helper
+  const applyImportedAttributes = (attrObj) => {
+    let count = 0;
+    Object.entries(attrObj).forEach(([key, val]) => {
+      const input = container.querySelector(`input[name="${key}"]`);
+      if (input) {
+        const numVal = Math.min(99, Math.max(1, Number(val) || 50));
+        input.value = numVal;
+        input.className = `attr-num-input ${getAttributeColor(numVal)}`;
+        count++;
+      }
+    });
+    recalcRating();
+    return count;
+  };
+
+  // Bind Import Attributes JSON Button (Modal & File picker)
+  const btnImportAttrs = container.querySelector('#btn-import-player-attrs');
+  const fileInputAttrs = container.querySelector('#input-player-attrs-json');
+  if (btnImportAttrs) {
+    btnImportAttrs.onclick = () => {
+      openAttributesImportModal({
+        isGk,
+        playerName: player.name,
+        onApply: (parsed) => {
+          const appliedCount = applyImportedAttributes(parsed);
+          showToast(`✅ ${appliedCount} attributes applied from JSON for ${player.name}! Remember to save.`);
+        }
+      });
+    };
+  }
+
+  // Bind Export Attributes JSON Button
+  const btnExportAttrs = container.querySelector('#btn-export-player-attrs');
+  if (btnExportAttrs) {
+    btnExportAttrs.onclick = () => {
+      const currentAttrs = {};
+      container.querySelectorAll('.attr-num-input').forEach(inp => {
+        const key = inp.getAttribute('name');
+        if (key) currentAttrs[key] = Number(inp.value) || 50;
+      });
+
+      const exportPayload = {
+        playerName: player.name,
+        position: player.pos,
+        shirtNumber: numInputEl ? (Number(numInputEl.value) || null) : null,
+        nationality: player.nat,
+        rating: Number(container.querySelector('#edit-player-rat')?.value) || player.rat,
+        attributes: currentAttrs
+      };
+
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportPayload, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `${player.name.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}_attributes.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      showToast(`📥 Exported attributes for ${player.name}`);
+    };
+  }
+
   // Handle Release Player
   const btnRelease = container.querySelector('#btn-release-player');
   if (btnRelease) {
@@ -778,3 +849,281 @@ export function renderPlayerDetailView(container, playerId) {
     };
   }
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+// ATTRIBUTES JSON IMPORT MODAL & NORMALIZATION
+// ────────────────────────────────────────────────────────────────────────────
+
+const ATTR_KEY_ALIASES = {
+  // Goalkeeping
+  aerialreach: 'aerialReach', 'aerial reach': 'aerialReach', aerial: 'aerialReach',
+  commandofarea: 'commandOfArea', 'command of area': 'commandOfArea',
+  communication: 'communication',
+  eccentricity: 'eccentricity',
+  firsttouch: 'firstTouch', 'first touch': 'firstTouch',
+  handling: 'handling',
+  kicking: 'kicking',
+  oneonones: 'oneOnOnes', 'one on ones': 'oneOnOnes', '1 on 1': 'oneOnOnes',
+  passing: 'passing',
+  punching: 'punching', 'punching (tendency)': 'punching', tendencytopunch: 'punching',
+  reflexes: 'reflexes',
+  rushingout: 'rushingOut', 'rushing out': 'rushingOut', 'rushing out (tendency)': 'rushingOut',
+  throwing: 'throwing',
+  
+  // Technical
+  crossing: 'crossing',
+  dribbling: 'dribbling',
+  finishing: 'finishing',
+  heading: 'heading',
+  longshots: 'longShots', 'long shots': 'longShots',
+  longthrows: 'longThrows', 'long throws': 'longThrows',
+  marking: 'marking',
+  tackling: 'tackling',
+  technique: 'technique',
+  corners: 'corners',
+  freekicks: 'freeKicks', 'free kicks': 'freeKicks', 'free kick taking': 'freeKicks',
+  penaltytaking: 'penaltyTaking', 'penalty taking': 'penaltyTaking', penalties: 'penaltyTaking',
+
+  // Mental
+  aggression: 'aggression',
+  anticipation: 'anticipation',
+  bravery: 'bravery',
+  composure: 'composure',
+  concentration: 'concentration',
+  decisions: 'decisions',
+  determination: 'determination',
+  flair: 'flair',
+  leadership: 'leadership',
+  offtheball: 'offTheBall', 'off the ball': 'offTheBall',
+  positioning: 'positioning',
+  teamwork: 'teamwork',
+  vision: 'vision',
+  workrate: 'workRate', 'work rate': 'workRate',
+
+  // Physical
+  acceleration: 'acceleration',
+  agility: 'agility',
+  balance: 'balance',
+  jumpingreach: 'jumpingReach', 'jumping reach': 'jumpingReach', jumping: 'jumpingReach',
+  naturalfitness: 'naturalFitness', 'natural fitness': 'naturalFitness',
+  pace: 'pace',
+  stamina: 'stamina',
+  strength: 'strength'
+};
+
+function normalizeAttributesJson(raw) {
+  if (!raw || typeof raw !== 'object') return {};
+  const source = raw.attributes && typeof raw.attributes === 'object' ? raw.attributes : raw;
+  const result = {};
+
+  for (const [k, v] of Object.entries(source)) {
+    if (typeof v === 'number' || (!isNaN(Number(v)) && typeof v === 'string' && v.trim() !== '')) {
+      const numVal = Math.min(99, Math.max(1, Math.round(Number(v))));
+      const cleanKey = k.toString().trim().toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ');
+      const mappedKey = ATTR_KEY_ALIASES[cleanKey] || ATTR_KEY_ALIASES[k.toLowerCase()] || k;
+      result[mappedKey] = numVal;
+    }
+  }
+  return result;
+}
+
+function openAttributesImportModal({ isGk, playerName, onApply }) {
+  const existing = document.getElementById('attr-import-modal-root');
+  if (existing) existing.remove();
+
+  const sampleJson = isGk ? {
+    "attributes": {
+      "aerialReach": 70,
+      "commandOfArea": 65,
+      "communication": 50,
+      "eccentricity": 25,
+      "firstTouch": 50,
+      "handling": 70,
+      "kicking": 70,
+      "oneOnOnes": 75,
+      "passing": 55,
+      "punching": 90,
+      "reflexes": 70,
+      "rushingOut": 55,
+      "throwing": 55,
+      "aggression": 35,
+      "anticipation": 65,
+      "bravery": 60,
+      "composure": 50,
+      "concentration": 50,
+      "decisions": 60,
+      "determination": 75,
+      "flair": 15,
+      "leadership": 35,
+      "offTheBall": 35,
+      "positioning": 75,
+      "teamwork": 60,
+      "vision": 45,
+      "workRate": 55,
+      "acceleration": 45,
+      "agility": 70,
+      "balance": 60,
+      "jumpingReach": 85,
+      "naturalFitness": 65,
+      "pace": 45,
+      "stamina": 65,
+      "strength": 75,
+      "technique": 70
+    }
+  } : {
+    "attributes": {
+      "crossing": 65,
+      "dribbling": 90,
+      "finishing": 90,
+      "firstTouch": 90,
+      "heading": 45,
+      "longShots": 75,
+      "marking": 20,
+      "passing": 75,
+      "tackling": 20,
+      "technique": 85,
+      "aggression": 30,
+      "anticipation": 85,
+      "bravery": 60,
+      "composure": 90,
+      "concentration": 80,
+      "decisions": 80,
+      "determination": 90,
+      "flair": 90,
+      "leadership": 65,
+      "offTheBall": 85,
+      "positioning": 20,
+      "teamwork": 50,
+      "vision": 80,
+      "workRate": 65,
+      "acceleration": 99,
+      "agility": 80,
+      "balance": 80,
+      "jumpingReach": 40,
+      "naturalFitness": 75,
+      "pace": 95,
+      "stamina": 75,
+      "strength": 60,
+      "corners": 65,
+      "freeKicks": 55,
+      "longThrows": 15,
+      "penaltyTaking": 90
+    }
+  };
+
+  const modal = document.createElement('div');
+  modal.id = 'attr-import-modal-root';
+  modal.className = 'modal-backdrop';
+  modal.style.cssText = 'z-index: 9999;';
+
+  modal.innerHTML = `
+    <div class="modal-window" style="max-width: 650px; max-height: 90vh; display: flex; flex-direction: column;">
+      <div class="modal-header">
+        <div class="modal-title">
+          <i class="fa-solid fa-file-import" style="color: #38bdf8;"></i>
+          Import Attributes — ${playerName}
+        </div>
+        <button class="modal-close-btn" id="btn-close-attr-import" type="button">&times;</button>
+      </div>
+
+      <div class="modal-body" style="padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto;">
+        <div style="font-size: 0.82rem; color: #94a3b8;">
+          Upload a JSON file or paste attribute values below (1–99 scale).
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <button type="button" class="btn-action-secondary" id="btn-modal-upload-file" style="font-size: 0.8rem; padding: 6px 14px;">
+            <i class="fa-solid fa-upload"></i> Upload .JSON File
+          </button>
+          <input type="file" id="modal-attr-file-input" accept=".json,application/json" style="display:none;" />
+          <button type="button" class="btn-action-secondary" id="btn-load-sample-template" style="font-size: 0.8rem; padding: 6px 14px; background: rgba(255,255,255,0.06);">
+            <i class="fa-solid fa-code"></i> Load Sample Template
+          </button>
+        </div>
+
+        <div class="form-group" style="margin-top: 4px;">
+          <label class="form-label" style="font-size: 0.8rem; color: #cbd5e1;">JSON Content</label>
+          <textarea id="attr-json-textarea" class="notes-textarea" rows="10" placeholder="Paste your JSON here..." style="font-family: monospace; font-size: 0.82rem; line-height: 1.4; color: #38bdf8; background: #030617;"></textarea>
+        </div>
+
+        <div id="attr-parse-status" style="font-size: 0.8rem; color: #64748b;">
+          Paste or upload JSON to validate attributes.
+        </div>
+      </div>
+
+      <div style="padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; background: #070b24; border-top: 1px solid #1c2766; flex-shrink: 0;">
+        <button type="button" class="btn-modal-cancel" id="btn-cancel-attr-import">Cancel</button>
+        <button type="button" id="btn-confirm-attr-import" class="btn-action-primary" style="padding: 10px 22px; font-weight: 800;">
+          <i class="fa-solid fa-check"></i> Apply Attributes
+        </button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  const closeModal = () => modal.remove();
+  modal.querySelector('#btn-close-attr-import').onclick = closeModal;
+  modal.querySelector('#btn-cancel-attr-import').onclick = closeModal;
+  modal.onclick = (e) => { if (e.target === modal) closeModal(); };
+
+  const textarea = modal.querySelector('#attr-json-textarea');
+  const statusEl = modal.querySelector('#attr-parse-status');
+  const fileInput = modal.querySelector('#modal-attr-file-input');
+  const btnUpload = modal.querySelector('#btn-modal-upload-file');
+  const btnSample = modal.querySelector('#btn-load-sample-template');
+
+  btnUpload.onclick = () => fileInput.click();
+
+  fileInput.onchange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      textarea.value = evt.target.result;
+      updateStatus();
+    };
+    reader.readAsText(file);
+  };
+
+  btnSample.onclick = () => {
+    textarea.value = JSON.stringify(sampleJson, null, 2);
+    updateStatus();
+  };
+
+  const updateStatus = () => {
+    const txt = textarea.value.trim();
+    if (!txt) {
+      statusEl.innerHTML = '<span style="color: #64748b;">Paste or upload JSON to validate attributes.</span>';
+      return null;
+    }
+    try {
+      const parsed = JSON.parse(txt);
+      const normalized = normalizeAttributesJson(parsed);
+      const count = Object.keys(normalized).length;
+      if (count > 0) {
+        statusEl.innerHTML = `<span style="color: #4ade80; font-weight: 700;">✅ Found ${count} recognized attributes ready to apply!</span>`;
+        return normalized;
+      } else {
+        statusEl.innerHTML = '<span style="color: #f87171;">⚠️ Valid JSON, but no matching attributes recognized.</span>';
+        return null;
+      }
+    } catch (err) {
+      statusEl.innerHTML = `<span style="color: #f87171;">❌ Invalid JSON syntax: ${err.message}</span>`;
+      return null;
+    }
+  };
+
+  textarea.oninput = updateStatus;
+
+  modal.querySelector('#btn-confirm-attr-import').onclick = () => {
+    const parsed = updateStatus();
+    if (!parsed) {
+      showToast('Please provide valid attribute JSON first.', 'error');
+      return;
+    }
+    closeModal();
+    onApply(parsed);
+  };
+}
+
