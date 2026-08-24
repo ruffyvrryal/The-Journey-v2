@@ -770,6 +770,14 @@ class StateStore {
     this.notify();
   }
 
+  clearSquad() {
+    this.selectedPlayerId = null;
+    const season = this.getActiveSeasonData();
+    season.squad = [];
+    this.recalculateSeasonStats();
+    this.notify();
+  }
+
   addTransfer(transfer) {
     const season = this.getActiveSeasonData();
     season.transfers.unshift({

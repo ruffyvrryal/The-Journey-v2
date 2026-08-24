@@ -216,6 +216,11 @@ export function renderSquadView(container) {
           ${store.clubName} Senior Squad
         </div>
         <div class="page-actions-group">
+          ${totalCount > 0 ? `
+            <button class="btn-action-danger" id="btn-delete-all-players" title="Delete all players from active squad">
+              <i class="fa-solid fa-trash-can"></i> Delete All Players
+            </button>
+          ` : ''}
           <button class="btn-action-secondary" id="btn-import-json-squad" title="Import players from a JSON file">
             <i class="fa-solid fa-file-import"></i> Import JSON
           </button>
@@ -309,6 +314,24 @@ export function renderSquadView(container) {
         fileInput.value = '';
       };
       reader.readAsText(file);
+    };
+  }
+
+  // Bind Delete All Players Button
+  const btnDeleteAll = container.querySelector('#btn-delete-all-players');
+  if (btnDeleteAll) {
+    btnDeleteAll.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const count = store.squad.length;
+      if (count === 0) {
+        showToast('No players in the squad to delete.', 'info');
+        return;
+      }
+      if (confirm(`⚠️ DANGER: Are you sure you want to delete ALL ${count} players from the squad? This cannot be undone.`)) {
+        store.clearSquad();
+        showToast(`🗑️ All ${count} players deleted from the squad.`);
+      }
     };
   }
 
