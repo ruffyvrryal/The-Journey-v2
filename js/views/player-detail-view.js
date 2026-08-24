@@ -119,6 +119,7 @@ export function renderPlayerDetailView(container, playerId) {
   // Position categorization
   const isGk = getPlayerCategory(player.pos) === 'GK';
   const posClass = getPositionBadgeClass(player.pos);
+  const natInfo = getCountryFlag(player.nat || 'ENG');
 
   // Initialize or retrieve attributes
   const attrs = player.attributes || getDefaultAttributes(player.pos, player.rat);
@@ -182,6 +183,9 @@ export function renderPlayerDetailView(container, playerId) {
         <div class="player-top-status-group">
           <span class="player-status-tag ${posClass}" id="player-header-shirt-tag">
             <i class="fa-solid fa-shirt"></i> #${shirtNum ?? '—'} • ${player.pos}
+          </span>
+          <span class="player-status-tag" style="background: #0c1538; border: 1px solid #1c2b66; display: inline-flex; align-items: center; gap: 6px; color: #e2e8f0;">
+            ${natInfo.flagHtml} ${natInfo.name} (${player.nat || 'ENG'})
           </span>
           <span class="player-status-tag tag-contract">
             <i class="fa-solid fa-file-signature"></i> Contract Exp: ${player.con}
@@ -274,7 +278,10 @@ export function renderPlayerDetailView(container, playerId) {
               <input type="number" id="edit-player-age" class="bio-input" value="${player.age}" min="15" max="45" />
             </div>
             <div class="bio-tile">
-              <span class="bio-lbl">Nationality</span>
+              <span class="bio-lbl" style="display: flex; align-items: center; justify-content: space-between;">
+                <span>Nationality</span>
+                <span id="player-bio-flag-preview">${natInfo.flagHtml}</span>
+              </span>
               <select id="edit-player-nat" class="bio-select">
                 ${renderCountryOptions(player.nat || 'ENG')}
               </select>
@@ -622,6 +629,17 @@ export function renderPlayerDetailView(container, playerId) {
         `;
       }
       showToast('Photo removed.');
+    };
+  }
+
+  // Handle Nationality Change to live-preview flag
+  const natSelect = container.querySelector('#edit-player-nat');
+  if (natSelect) {
+    natSelect.onchange = () => {
+      const newNat = natSelect.value;
+      const newNatInfo = getCountryFlag(newNat);
+      const flagPreview = container.querySelector('#player-bio-flag-preview');
+      if (flagPreview) flagPreview.innerHTML = newNatInfo.flagHtml;
     };
   }
 

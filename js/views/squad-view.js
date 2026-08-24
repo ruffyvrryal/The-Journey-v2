@@ -117,8 +117,8 @@ export function renderSquadView(container) {
         </td>
         <td style="text-align: center; font-weight: 600;">${p.age}</td>
         <td style="text-align: center;">
-          <span class="nation-tag" title="${natInfo.name}">
-            <span style="font-size: 1rem; margin-right: 4px;">${natInfo.flag}</span>
+          <span class="nation-tag" title="${natInfo.name} (${p.nat || 'ENG'})">
+            ${natInfo.flagHtml}
             <span>${p.nat || 'ENG'}</span>
           </span>
         </td>

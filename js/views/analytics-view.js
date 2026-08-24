@@ -159,10 +159,10 @@ export function renderAnalyticsView(container) {
             </div>
           </td>
 
-          <!-- Nationality with Flag -->
+          <!-- Nationality with Real Flag Image -->
           <td style="text-align: center;">
-            <span class="nation-tag" title="${natInfo.name}">
-              <span style="font-size: 0.95rem; margin-right: 3px;">${natInfo.flag}</span>
+            <span class="nation-tag" title="${natInfo.name} (${p.nat || 'ENG'})">
+              ${natInfo.flagHtml}
               <span>${p.nat || 'ENG'}</span>
             </span>
           </td>
@@ -313,7 +313,7 @@ export function renderAnalyticsView(container) {
               <div style="background: #05071a; border: 1px solid #16204c; border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px;">
                 <div style="display: flex; align-items: center; justify-content: space-between;">
                   <div style="display: flex; align-items: center; gap: 8px;">
-                    <span style="font-size: 1.3rem;">${n.flag}</span>
+                    ${n.flagHtmlLg || `<img src="${n.flagUrl}" class="national-flag-img-lg" alt="${n.name}" loading="lazy" />`}
                     <div>
                       <strong style="color: #ffffff; font-size: 0.85rem;">${n.name}</strong>
                       <span style="font-size: 0.7rem; color: #64748b; margin-left: 4px;">(${n.code})</span>
