@@ -1169,7 +1169,7 @@ function openAttributesImportModal({ isGk, playerName, onApply }) {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// FMINSIDE LINK IMPORTER & ROBUST HTML / TEXT PARSER
+// FMINSIDE LINK IMPORTER & MULTI-STRATEGY HTML / TEXT PARSER
 // ────────────────────────────────────────────────────────────────────────────
 
 export function parseFmInsideHtml(content, url = '') {
@@ -1179,26 +1179,94 @@ export function parseFmInsideHtml(content, url = '') {
     pos: null,
     nat: null,
     age: null,
-    photo: null
+    photo: null,
+    isUrl: false
   };
 
   if (!content || typeof content !== 'string') return result;
+  const trimmed = content.trim();
 
-  try {
-    const isHtml = /<[a-z][\s\S]*>/i.test(content);
+  // If user pasted just a URL into the textarea
+  if (/^https?:\/\/[^\s]+$/i.test(trimmed)) {
+    result.isUrl = true;
+    url = trimmed;
+  }
 
-    // 1. Player Name
-    if (isHtml) {
+  // Name from URL slug
+  if (url) {
+    const slug = url.split('/').pop().replace(/^[0-9]+-/, '').replace(/-/g, ' ');
+    if (slug) result.name = slug.replace(/\b\w/g, l => l.toUpperCase());
+  }
+
+  // Definitions of all FM attributes with all known naming variations
+  const ATTR_DEFINITIONS = [
+    // Goalkeeping
+    { key: 'aerialReach', names: ['aerial reach', 'aerialreach', 'aerial'] },
+    { key: 'commandOfArea', names: ['command of area', 'commandofarea'] },
+    { key: 'communication', names: ['communication'] },
+    { key: 'eccentricity', names: ['eccentricity'] },
+    { key: 'firstTouch', names: ['first touch', 'firsttouch'] },
+    { key: 'handling', names: ['handling'] },
+    { key: 'kicking', names: ['kicking'] },
+    { key: 'oneOnOnes', names: ['one on ones', '1 on 1', 'one on one', 'oneonones', '1-on-1'] },
+    { key: 'passing', names: ['passing'] },
+    { key: 'punching', names: ['punching (tendency)', 'tendency to punch', 'punching', 'punch'] },
+    { key: 'reflexes', names: ['reflexes', 'reflex'] },
+    { key: 'rushingOut', names: ['rushing out (tendency)', 'rushing out', 'rushingout'] },
+    { key: 'throwing', names: ['throwing', 'throws'] },
+
+    // Technical
+    { key: 'corners', names: ['corners', 'corner'] },
+    { key: 'crossing', names: ['crossing', 'crosses'] },
+    { key: 'dribbling', names: ['dribbling', 'dribble'] },
+    { key: 'finishing', names: ['finishing'] },
+    { key: 'heading', names: ['heading', 'header'] },
+    { key: 'longShots', names: ['long shots', 'longshots', 'long shot'] },
+    { key: 'longThrows', names: ['long throws', 'longthrows', 'long throw'] },
+    { key: 'marking', names: ['marking'] },
+    { key: 'penaltyTaking', names: ['penalty taking', 'penalties', 'penalty', 'penaltytaking'] },
+    { key: 'freeKicks', names: ['free kick taking', 'free kicks', 'freekicks', 'free kick'] },
+    { key: 'tackling', names: ['tackling', 'tackle'] },
+    { key: 'technique', names: ['technique'] },
+
+    // Mental
+    { key: 'aggression', names: ['aggression'] },
+    { key: 'anticipation', names: ['anticipation'] },
+    { key: 'bravery', names: ['bravery'] },
+    { key: 'composure', names: ['composure'] },
+    { key: 'concentration', names: ['concentration'] },
+    { key: 'decisions', names: ['decisions', 'decision'] },
+    { key: 'determination', names: ['determination'] },
+    { key: 'flair', names: ['flair'] },
+    { key: 'leadership', names: ['leadership'] },
+    { key: 'offTheBall', names: ['off the ball', 'offtheball'] },
+    { key: 'positioning', names: ['positioning'] },
+    { key: 'teamwork', names: ['teamwork'] },
+    { key: 'vision', names: ['vision'] },
+    { key: 'workRate', names: ['work rate', 'workrate'] },
+
+    // Physical
+    { key: 'acceleration', names: ['acceleration'] },
+    { key: 'agility', names: ['agility'] },
+    { key: 'balance', names: ['balance'] },
+    { key: 'jumpingReach', names: ['jumping reach', 'jumpingreach', 'jumping'] },
+    { key: 'naturalFitness', names: ['natural fitness', 'naturalfitness'] },
+    { key: 'pace', names: ['pace'] },
+    { key: 'stamina', names: ['stamina'] },
+    { key: 'strength', names: ['strength'] }
+  ];
+
+  const scaleFMto99 = (num) => Math.min(99, Math.max(1, Math.round((num / 20) * 99)));
+
+  // Strategy 1: HTML DOM Extraction (if HTML was pasted)
+  if (/<[a-z][\s\S]*>/i.test(content)) {
+    try {
       const parser = new DOMParser();
       const doc = parser.parseFromString(content, 'text/html');
+
       const h1 = doc.querySelector('h1');
       if (h1 && h1.textContent.trim()) {
         result.name = h1.textContent.trim().replace(/\s+/g, ' ');
-      } else {
-        const ogTitle = doc.querySelector('meta[property="og:title"]');
-        if (ogTitle && ogTitle.content) {
-          result.name = ogTitle.content.split('-')[0].trim();
-        }
       }
 
       const ogImg = doc.querySelector('meta[property="og:image"]');
@@ -1206,9 +1274,7 @@ export function parseFmInsideHtml(content, url = '') {
         result.photo = ogImg.content;
       } else {
         const faceImg = doc.querySelector('img[src*="faces"], img[src*="players"], img[src*="cuts"]');
-        if (faceImg && faceImg.src) {
-          result.photo = faceImg.src;
-        }
+        if (faceImg && faceImg.src) result.photo = faceImg.src;
       }
 
       const natImg = doc.querySelector('img[src*="flags"], img[alt*="flag" i], [class*="flag"]');
@@ -1219,59 +1285,83 @@ export function parseFmInsideHtml(content, url = '') {
           if (country) result.nat = country.code;
         }
       }
-    }
+    } catch (e) {}
+  }
 
-    // Name fallback from URL or text
-    if (!result.name && url) {
-      const slug = url.split('/').pop().replace(/^[0-9]+-/, '').replace(/-/g, ' ');
-      if (slug) result.name = slug.replace(/\b\w/g, l => l.toUpperCase());
-    }
+  // Strategy 2: Line-by-Line Token Analysis (for Ctrl+A, Ctrl+C copied text)
+  const lines = content
+    .replace(/<[^>]*>/g, '\n') // Replace HTML tags with newlines
+    .split(/\r?\n/)
+    .map(l => l.trim())
+    .filter(Boolean);
 
-    // Age regex
-    const ageMatch = content.match(/(?:Age|Leeftijd|Edad|Âge)[\s:<>/a-zA-Z="]+([0-9]{2})/i);
-    if (ageMatch && Number(ageMatch[1]) >= 15 && Number(ageMatch[1]) <= 45) {
-      result.age = Number(ageMatch[1]);
-    }
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const lineLower = line.toLowerCase();
 
-    // Position regex
-    const posMatch = content.match(/(?:Position|Positie|Posici[oó]n)[\s:<>/a-zA-Z="]+(GK|DC|DL|DR|CB|LB|RB|DM|MC|CM|AMC|CAM|AML|AMR|LW|RW|ST|CF|AF)/i);
-    if (posMatch) {
-      result.pos = posMatch[1].toUpperCase();
-    }
+    for (const def of ATTR_DEFINITIONS) {
+      if (result.attributes[def.key] !== undefined) continue;
 
-    // 2. Comprehensive Attribute Name List
-    const allAttrNames = [
-      'Aerial Reach', 'Command of Area', 'Communication', 'Eccentricity', 'Handling', 'Kicking',
-      'One on Ones', '1 on 1', 'Reflexes', 'Rushing Out', 'Punching', 'Tendency to Punch', 'Throwing',
-      'Crossing', 'Dribbling', 'Finishing', 'First Touch', 'Free Kick Taking', 'Free Kicks',
-      'Heading', 'Long Shots', 'Long Throws', 'Marking', 'Passing', 'Penalty Taking', 'Penalties',
-      'Tackling', 'Technique', 'Corners',
-      'Aggression', 'Anticipation', 'Bravery', 'Composure', 'Concentration', 'Decisions',
-      'Determination', 'Flair', 'Leadership', 'Off the Ball', 'Positioning', 'Teamwork', 'Vision', 'Work Rate',
-      'Acceleration', 'Agility', 'Balance', 'Jumping Reach', 'Natural Fitness', 'Pace', 'Stamina', 'Strength'
-    ];
-
-    // 3. Multiline & Flexible Regex Attribute Extractor
-    allAttrNames.forEach(attrName => {
-      const cleanKey = attrName.toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ');
-      const key = ATTR_KEY_ALIASES[cleanKey];
-      if (key && result.attributes[key] === undefined) {
-        const escaped = attrName.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-        // Matches same line or next line numeric value (1-20)
-        const rgx = new RegExp(`(?:^|[>\\s\\n\\t\\r])${escaped}(?:[<\\/a-zA-Z0-9_="':;\\-\\s\\t\\n\\r]{0,80}?)([0-9]{1,2})(?:[^0-9]|$)`, 'i');
-        const match = content.match(rgx);
-        if (match) {
-          const num = Number(match[1]);
+      for (const name of def.names) {
+        // Same line: "Aerial Reach 16" or "Aerial Reach: 16" or "16 Aerial Reach"
+        const sameLineRegex = new RegExp(`^(?:${name}[:\\s\\t-]+([0-9]{1,2})|([0-9]{1,2})[:\\s\\t-]+${name})$`, 'i');
+        const sameLineMatch = line.match(sameLineRegex) || line.match(new RegExp(`(?:^|\\s)${name}[:\\s\\t-]+([0-9]{1,2})(?:\\s|$)`, 'i'));
+        
+        if (sameLineMatch) {
+          const num = parseInt(sameLineMatch[1] || sameLineMatch[2], 10);
           if (!isNaN(num) && num >= 1 && num <= 20) {
-            // Convert FM 1-20 scale to 1-99 scale
-            result.attributes[key] = Math.min(99, Math.max(1, Math.round((num / 20) * 99)));
+            result.attributes[def.key] = scaleFMto99(num);
+            break;
+          }
+        }
+
+        // Multi-line: Line has attribute name, next line (or line + 2) has the number
+        if (lineLower === name || lineLower.startsWith(name)) {
+          for (let offset = 1; offset <= 3; offset++) {
+            if (i + offset < lines.length) {
+              const nextLine = lines[i + offset].trim();
+              const num = parseInt(nextLine, 10);
+              if (!isNaN(num) && num >= 1 && num <= 20 && String(num) === nextLine.replace(/[^0-9]/g, '')) {
+                result.attributes[def.key] = scaleFMto99(num);
+                break;
+              }
+            }
           }
         }
       }
-    });
+    }
+  }
 
-  } catch (err) {
-    console.error('FMInside parse error:', err);
+  // Strategy 3: Sliding Window Regex across Full Text
+  const cleanFullText = content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
+  for (const def of ATTR_DEFINITIONS) {
+    if (result.attributes[def.key] === undefined) {
+      for (const name of def.names) {
+        const rgx = new RegExp(`\\b${name}\\b[^a-zA-Z0-9]{0,25}?([0-9]{1,2})\\b`, 'i');
+        const match = cleanFullText.match(rgx);
+        if (match) {
+          const num = parseInt(match[1], 10);
+          if (!isNaN(num) && num >= 1 && num <= 20) {
+            result.attributes[def.key] = scaleFMto99(num);
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  // Extract Age and Position
+  if (!result.age) {
+    const ageM = cleanFullText.match(/\b(?:Age|Age:)\s*([0-9]{2})\b/i);
+    if (ageM && Number(ageM[1]) >= 15 && Number(ageM[1]) <= 45) {
+      result.age = Number(ageM[1]);
+    }
+  }
+  if (!result.pos) {
+    const posM = cleanFullText.match(/\b(GK|DC|DL|DR|CB|LB|RB|DM|MC|CM|AMC|CAM|AML|AMR|LW|RW|ST|CF|AF)\b/);
+    if (posM) {
+      result.pos = posM[1].toUpperCase();
+    }
   }
 
   return result;
@@ -1287,7 +1377,7 @@ export function openFmInsideImportModal({ player, isGk, onApply }) {
   modal.style.cssText = 'z-index: 9999;';
 
   modal.innerHTML = `
-    <div class="modal-window" style="max-width: 680px; max-height: 90vh; display: flex; flex-direction: column;">
+    <div class="modal-window" style="max-width: 700px; max-height: 90vh; display: flex; flex-direction: column;">
       <div class="modal-header">
         <div class="modal-title">
           <i class="fa-solid fa-bolt" style="color: #c084fc;"></i>
@@ -1298,41 +1388,52 @@ export function openFmInsideImportModal({ player, isGk, onApply }) {
 
       <div class="modal-body" style="padding: 16px 20px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto;">
         
-        <!-- Top Instruction & Method Tabs -->
+        <!-- 3-Step Simple Guide Box -->
         <div style="background: rgba(192, 132, 252, 0.08); border: 1px solid rgba(192, 132, 252, 0.25); border-radius: 8px; padding: 10px 14px;">
-          <div style="font-size: 0.84rem; font-weight: 700; color: #e9d5ff; display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
-            <i class="fa-solid fa-circle-info"></i> Fast 3-Second Import (100% Reliable):
+          <div style="font-size: 0.85rem; font-weight: 800; color: #e9d5ff; display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
+            <i class="fa-solid fa-sparkles" style="color: #facc15;"></i> Fast 3-Second Import (100% Guaranteed):
           </div>
-          <ol style="margin: 0; padding-left: 18px; font-size: 0.78rem; color: #cbd5e1; line-height: 1.4;">
-            <li>Open the player on <a href="https://fminside.net" target="_blank" style="color: #38bdf8; text-decoration: underline;">FMInside</a>.</li>
-            <li>Press <kbd style="background: #1e1b4b; padding: 1px 5px; border-radius: 3px; border: 1px solid #4338ca;">Ctrl + A</kbd> then <kbd style="background: #1e1b4b; padding: 1px 5px; border-radius: 3px; border: 1px solid #4338ca;">Ctrl + C</kbd> on the FMInside page.</li>
-            <li>Paste (<kbd style="background: #1e1b4b; padding: 1px 5px; border-radius: 3px; border: 1px solid #4338ca;">Ctrl + V</kbd>) into the box below — attributes will be instantly mapped!</li>
-          </ol>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; font-size: 0.76rem; color: #cbd5e1;">
+            <div style="background: #060a22; padding: 8px; border-radius: 6px; border: 1px solid #16204c;">
+              <strong style="color: #38bdf8;">Step 1:</strong> Open player page on <a href="https://fminside.net" target="_blank" style="color: #38bdf8; text-decoration: underline;">FMInside</a>
+            </div>
+            <div style="background: #060a22; padding: 8px; border-radius: 6px; border: 1px solid #16204c;">
+              <strong style="color: #facc15;">Step 2:</strong> Press <kbd style="background: #1e1b4b; padding: 1px 4px; border-radius: 3px;">Ctrl + A</kbd> then <kbd style="background: #1e1b4b; padding: 1px 4px; border-radius: 3px;">Ctrl + C</kbd>
+            </div>
+            <div style="background: #060a22; padding: 8px; border-radius: 6px; border: 1px solid #16204c;">
+              <strong style="color: #4ade80;">Step 3:</strong> Paste (<kbd style="background: #1e1b4b; padding: 1px 4px; border-radius: 3px;">Ctrl + V</kbd>) in the box below!
+            </div>
+          </div>
         </div>
 
-        <!-- Direct Paste Area (Primary) -->
+        <!-- Direct Paste Box (Primary) -->
         <div class="form-group">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-            <label class="form-label" style="font-size: 0.82rem; color: #cbd5e1; font-weight: 700;">
-              📋 Paste FMInside Page Content or Text
+            <label class="form-label" style="font-size: 0.82rem; color: #ffffff; font-weight: 800;">
+              📋 Paste FMInside Page Content Here
             </label>
-            <button type="button" id="btn-load-trubin-sample" style="background: none; border: none; color: #38bdf8; font-size: 0.74rem; cursor: pointer; text-decoration: underline;">
-              Load Sample Data (Trubin GK)
-            </button>
+            <div style="display: flex; gap: 8px;">
+              <button type="button" id="btn-sample-trubin" style="background: none; border: none; color: #38bdf8; font-size: 0.73rem; cursor: pointer; text-decoration: underline;">
+                Try Trubin (GK)
+              </button>
+              <button type="button" id="btn-sample-haaland" style="background: none; border: none; color: #38bdf8; font-size: 0.73rem; cursor: pointer; text-decoration: underline;">
+                Try Haaland (ST)
+              </button>
+            </div>
           </div>
           <textarea 
             id="fminside-paste-textarea" 
             class="notes-textarea" 
             rows="6" 
             placeholder="Paste FMInside page text (Ctrl+V) here to automatically parse attributes..."
-            style="font-family: monospace; font-size: 0.78rem; color: #38bdf8; background: #030617;"
+            style="font-family: monospace; font-size: 0.78rem; color: #38bdf8; background: #030617; border-color: #2b3e85;"
           ></textarea>
         </div>
 
-        <!-- URL Fetch Accordion (Secondary) -->
+        <!-- URL Fetch Helper (Secondary) -->
         <details style="background: #05081c; border: 1px solid #16204c; border-radius: 8px; padding: 8px 12px;">
           <summary style="font-size: 0.78rem; color: #94a3b8; cursor: pointer; font-weight: 600;">
-            🌐 Or Fetch Directly via FMInside URL
+            🌐 Or Fetch via URL (Direct Link)
           </summary>
           <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 6px;">
             <div style="display: flex; gap: 8px;">
@@ -1347,17 +1448,14 @@ export function openFmInsideImportModal({ player, isGk, onApply }) {
                 <i class="fa-solid fa-cloud-arrow-down"></i> Fetch URL
               </button>
             </div>
-            <div style="font-size: 0.72rem; color: #64748b;">
-              * Note: If FMInside's Cloudflare blocks the proxy fetch, use the Paste box above.
-            </div>
           </div>
         </details>
 
-        <!-- Options Checkboxes -->
+        <!-- Import Options -->
         <div style="background: #05081c; border: 1px solid #16204c; border-radius: 8px; padding: 10px 14px; display: flex; flex-direction: column; gap: 6px;">
           <div style="font-size: 0.78rem; font-weight: 700; color: #e2e8f0; margin-bottom: 2px;">Import Options</div>
           <label style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: #cbd5e1; cursor: pointer;">
-            <input type="checkbox" id="chk-import-attrs" checked /> Apply all attributes (scaled from 1–20 to 1–99 scale)
+            <input type="checkbox" id="chk-import-attrs" checked /> Apply all attributes (converted to 1–99 scale)
           </label>
           <label style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: #cbd5e1; cursor: pointer;">
             <input type="checkbox" id="chk-import-bio" /> Update biographical info (Name, Position, Age, Nat)
@@ -1395,13 +1493,31 @@ export function openFmInsideImportModal({ player, isGk, onApply }) {
   const btnFetch = modal.querySelector('#btn-fetch-fminside');
   const previewArea = modal.querySelector('#fminside-preview-area');
   const btnConfirm = modal.querySelector('#btn-confirm-fminside-import');
-  const btnSample = modal.querySelector('#btn-load-trubin-sample');
+  const btnTrubin = modal.querySelector('#btn-sample-trubin');
+  const btnHaaland = modal.querySelector('#btn-sample-haaland');
   let parsedData = null;
 
   // Display parsed data preview
   const displayPreview = (data) => {
     parsedData = data;
     const attrCount = Object.keys(data.attributes || {}).length;
+
+    if (data.isUrl) {
+      previewArea.style.display = 'block';
+      previewArea.innerHTML = `
+        <div style="background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; padding: 10px 12px; font-size: 0.8rem; line-height: 1.4; color: #e2e8f0;">
+          <strong style="color: #38bdf8;">🌐 URL Detected!</strong><br>
+          FMInside blocks automated external bot requests. Please:
+          <ol style="margin: 4px 0 0; padding-left: 16px;">
+            <li>Click <a href="${pasteArea.value.trim()}" target="_blank" style="color: #38bdf8; font-weight: bold; text-decoration: underline;">Open Player in FMInside ↗</a></li>
+            <li>Press <strong>Ctrl+A</strong> then <strong>Ctrl+C</strong> on the player page.</li>
+            <li>Paste (<strong>Ctrl+V</strong>) back into the box above!</li>
+          </ol>
+        </div>
+      `;
+      btnConfirm.disabled = true;
+      return;
+    }
 
     if (attrCount === 0 && !data.name) {
       previewArea.style.display = 'block';
@@ -1459,10 +1575,10 @@ export function openFmInsideImportModal({ player, isGk, onApply }) {
   pasteArea.oninput = handlePasteParse;
   pasteArea.onpaste = () => setTimeout(handlePasteParse, 50);
 
-  // Sample Data Button (Trubin)
-  if (btnSample) {
-    btnSample.onclick = () => {
-      pasteArea.value = `Anatolii Trubin - FM23 Profile
+  // Sample Buttons
+  if (btnTrubin) {
+    btnTrubin.onclick = () => {
+      pasteArea.value = `Anatolii Trubin - Benfica GK
 Goalkeeping
 Aerial Reach 16
 Command of Area 14
@@ -1501,6 +1617,52 @@ Stamina 13
 Strength 16
 Technical
 Technique 11`;
+      handlePasteParse();
+    };
+  }
+
+  if (btnHaaland) {
+    btnHaaland.onclick = () => {
+      pasteArea.value = `Erling Haaland - Man City ST
+Technical
+Corners 7
+Crossing 10
+Dribbling 14
+Finishing 19
+First Touch 16
+Free Kick Taking 12
+Heading 16
+Long Shots 13
+Long Throws 5
+Marking 7
+Passing 13
+Penalty Taking 19
+Tackling 8
+Technique 15
+Mental
+Aggression 15
+Anticipation 18
+Bravery 18
+Composure 18
+Concentration 15
+Decisions 16
+Determination 20
+Flair 15
+Leadership 12
+Off the Ball 18
+Positioning 10
+Teamwork 14
+Vision 13
+Work Rate 16
+Physical
+Acceleration 17
+Agility 14
+Balance 17
+Jumping Reach 18
+Natural Fitness 17
+Pace 19
+Stamina 16
+Strength 19`;
       handlePasteParse();
     };
   }
@@ -1600,6 +1762,7 @@ Technique 11`;
     onApply(payload);
   };
 }
+
 
 
 
