@@ -1953,25 +1953,45 @@ export function openScreenshotOcrModal({ player, isGk, onApply }) {
     reader.readAsDataURL(fileOrBlob);
   };
 
-  // Image preprocessing canvas for high OCR contrast
+  // Image preprocessing with 2.5x upscale and high-contrast binarization
   const preprocessImage = (imageSrc) => {
     return new Promise((resolve) => {
       const img = new Image();
       img.onload = () => {
+        // Upscale 2.5x for superior small digit/font OCR accuracy
+        const scale = 2.5;
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
-        canvas.width = img.width;
-        canvas.height = img.height;
-        ctx.drawImage(img, 0, 0);
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
 
-        // Convert to high-contrast grayscale for sharper attribute number OCR
+        // Smooth upscaled rendering
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
         const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const data = imgData.data;
+
+        // Adaptive Binarization: Invert dark FM background into crisp black-on-white text
         for (let i = 0; i < data.length; i += 4) {
-          const avg = (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114);
-          data[i] = avg;
-          data[i + 1] = avg;
-          data[i + 2] = avg;
+          const r = data[i];
+          const g = data[i + 1];
+          const b = data[i + 2];
+          // Luminance calculation
+          const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+
+          // If pixel is bright (text or FM green/yellow highlight numbers), make it dark black text
+          // If pixel is dark background, make it pure white background
+          if (lum > 60 || g > 110) {
+            data[i] = 0;
+            data[i + 1] = 0;
+            data[i + 2] = 0;
+          } else {
+            data[i] = 255;
+            data[i + 1] = 255;
+            data[i + 2] = 255;
+          }
         }
         ctx.putImageData(imgData, 0, 0);
         resolve(canvas);
@@ -1980,19 +2000,18 @@ export function openScreenshotOcrModal({ player, isGk, onApply }) {
     });
   };
 
-  // Run OCR
+  // Run OCR with Tesseract
   const executeOcr = async (imageSrc) => {
     if (!imageSrc) return;
 
     btnRunOcr.disabled = true;
-    btnRunOcr.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
+    btnRunOcr.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Analyzing...';
     progressWrap.style.display = 'block';
-    progressBar.style.width = '15%';
-    statusTitle.textContent = 'Extracting text from image...';
-    statusText.textContent = 'Initializing Tesseract OCR engine...';
+    progressBar.style.width = '20%';
+    statusTitle.textContent = 'Preprocessing screenshot & enhancing contrast...';
+    statusText.textContent = 'Upscaling image for high-precision digit recognition...';
 
     try {
-      // Ensure Tesseract is ready
       if (!window.Tesseract) {
         statusText.textContent = 'Loading OCR library from CDN...';
         await new Promise((res, rej) => {
@@ -2010,22 +2029,35 @@ export function openScreenshotOcrModal({ player, isGk, onApply }) {
         logger: (m) => {
           if (m.status === 'recognizing text') {
             const p = Math.round((m.progress || 0) * 100);
-            progressBar.style.width = `${Math.max(15, p)}%`;
-            statusText.textContent = `Recognizing attributes... ${p}%`;
+            progressBar.style.width = `${Math.max(20, p)}%`;
+            statusText.textContent = `Scanning FM attributes and numbers... ${p}%`;
           }
         }
+      });
+
+      // Configure OCR for table/block reading
+      await worker.setParameters({
+        tessedit_pageseg_mode: Tesseract.PSM ? Tesseract.PSM.SPARSE_TEXT : '11',
+        tessedit_char_whitelist: '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ():- /'
       });
 
       const { data: { text } } = await worker.recognize(preprocessedCanvas);
       await worker.terminate();
 
       progressBar.style.width = '100%';
-      statusTitle.textContent = '✅ OCR Complete!';
-      statusText.textContent = 'Attributes successfully recognized from screenshot.';
+      statusTitle.textContent = '✅ Attributes Extracted!';
+      statusText.textContent = 'Review and adjust any detected attribute values below.';
 
-      // Parse the recognized OCR text
-      const parsed = parseFmInsideHtml(text);
-      displayOcrResults(parsed, text);
+      // Clean OCR character noise (e.g. l4 -> 14, I6 -> 16, O -> 0)
+      const cleanedOcrText = text
+        .replace(/\b[lI|](\d)\b/g, '1$1')
+        .replace(/\b(\d)[lI|]\b/g, '$11')
+        .replace(/\b[lI|][lI|]\b/g, '11')
+        .replace(/\b1O\b/g, '10')
+        .replace(/\b2O\b/g, '20');
+
+      const parsed = parseFmInsideHtml(cleanedOcrText);
+      displayOcrResults(parsed, cleanedOcrText);
 
     } catch (err) {
       console.error('OCR Error:', err);
@@ -2041,7 +2073,7 @@ export function openScreenshotOcrModal({ player, isGk, onApply }) {
     if (currentImageSource) executeOcr(currentImageSource);
   };
 
-  // Display OCR Results
+  // Display OCR Results with Editable Table
   const displayOcrResults = (data, rawText) => {
     parsedOcrData = data;
     const attrCount = Object.keys(data.attributes || {}).length;
@@ -2050,36 +2082,92 @@ export function openScreenshotOcrModal({ player, isGk, onApply }) {
 
     if (attrCount === 0) {
       resultsArea.innerHTML = `
-        <div style="color: #f87171; font-size: 0.8rem; line-height: 1.4;">
-          <strong>⚠️ No attributes recognized in the screenshot.</strong><br>
-          <span style="color: #94a3b8;">Tips: Make sure the screenshot clearly shows the attribute names and their numeric values (1–20). You can also use the <strong>Import FMInside</strong> button to paste text directly!</span>
+        <div style="color: #f87171; font-size: 0.8rem; line-height: 1.4; margin-bottom: 8px;">
+          <strong>⚠️ Could not automatically detect attributes from the image.</strong>
         </div>
+        <div style="font-size: 0.78rem; color: #94a3b8; margin-bottom: 6px;">
+          Raw text detected by OCR:
+        </div>
+        <textarea id="ocr-raw-text-edit" class="notes-textarea" rows="4" style="font-family: monospace; font-size: 0.76rem; color: #38bdf8;">${rawText || ''}</textarea>
+        <button type="button" id="btn-reparse-raw-ocr" class="btn-action-secondary" style="margin-top: 6px; font-size: 0.78rem; padding: 5px 12px;">
+          <i class="fa-solid fa-sync"></i> Re-parse Text
+        </button>
       `;
       btnConfirm.disabled = true;
+
+      const btnReparse = resultsArea.querySelector('#btn-reparse-raw-ocr');
+      const rawTextarea = resultsArea.querySelector('#ocr-raw-text-edit');
+      if (btnReparse && rawTextarea) {
+        btnReparse.onclick = () => {
+          const reparsed = parseFmInsideHtml(rawTextarea.value);
+          displayOcrResults(reparsed, rawTextarea.value);
+        };
+      }
       return;
     }
 
-    const sampleAttrs = Object.entries(data.attributes || {});
+    const entries = Object.entries(data.attributes || {});
 
     resultsArea.innerHTML = `
       <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #1c2b66; padding-bottom: 8px; margin-bottom: 8px;">
-        <span style="font-size: 0.85rem; font-weight: 700; color: #ffffff;">
-          Detected Attributes from Screenshot:
-        </span>
+        <div>
+          <span style="font-size: 0.86rem; font-weight: 800; color: #ffffff;">
+            Extracted Attributes (Editable Review):
+          </span>
+          <div style="font-size: 0.73rem; color: #94a3b8;">
+            Converted to 1–99 scale. You can edit any numbers below before applying.
+          </div>
+        </div>
         <span style="background: rgba(74, 222, 128, 0.15); color: #4ade80; border: 1px solid rgba(74, 222, 128, 0.4); border-radius: 4px; padding: 2px 8px; font-size: 0.78rem; font-weight: 700;">
-          ✅ ${attrCount} Attributes Extracted (1–99 Scale)
+          ✅ ${attrCount} Attributes Found
         </span>
       </div>
 
-      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 6px; font-size: 0.75rem; max-height: 200px; overflow-y: auto; padding-right: 4px;">
-        ${sampleAttrs.map(([k, v]) => `
-          <div style="background: #030617; padding: 4px 6px; border-radius: 4px; display: flex; justify-content: space-between;">
-            <span style="color: #cbd5e1; text-transform: capitalize;">${k.replace(/([A-Z])/g, ' $1')}</span>
-            <strong class="attr-${v >= 80 ? 'elite' : v >= 65 ? 'great' : v >= 45 ? 'good' : 'poor'}">${v}</strong>
+      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 6px; font-size: 0.75rem; max-height: 220px; overflow-y: auto; padding-right: 4px;">
+        ${entries.map(([k, v]) => `
+          <div style="background: #030617; padding: 4px 8px; border-radius: 4px; border: 1px solid #16204c; display: flex; align-items: center; justify-content: space-between; gap: 6px;">
+            <span style="color: #cbd5e1; text-transform: capitalize; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              ${k.replace(/([A-Z])/g, ' $1')}
+            </span>
+            <input 
+              type="number" 
+              class="ocr-attr-edit-input" 
+              data-attr="${k}" 
+              value="${v}" 
+              min="1" 
+              max="99" 
+              style="width: 42px; background: #080c30; border: 1px solid #38bdf8; border-radius: 4px; color: #facc15; font-weight: 800; text-align: center; font-size: 0.8rem; padding: 2px 0;"
+            />
           </div>
         `).join('')}
       </div>
+
+      <details style="margin-top: 8px; font-size: 0.74rem; color: #64748b;">
+        <summary style="cursor: pointer; color: #94a3b8;">View / Edit Raw OCR Text</summary>
+        <textarea id="ocr-raw-text-edit" class="notes-textarea" rows="3" style="margin-top: 4px; font-family: monospace; font-size: 0.74rem; color: #38bdf8;">${rawText || ''}</textarea>
+        <button type="button" id="btn-reparse-raw-ocr" class="btn-action-secondary" style="margin-top: 4px; font-size: 0.75rem; padding: 4px 10px;">
+          Re-parse Raw Text
+        </button>
+      </details>
     `;
+
+    // Bind real-time input edits
+    resultsArea.querySelectorAll('.ocr-attr-edit-input').forEach(inp => {
+      inp.oninput = () => {
+        const attrKey = inp.getAttribute('data-attr');
+        const num = Math.min(99, Math.max(1, Number(inp.value) || 50));
+        parsedOcrData.attributes[attrKey] = num;
+      };
+    });
+
+    const btnReparse = resultsArea.querySelector('#btn-reparse-raw-ocr');
+    const rawTextarea = resultsArea.querySelector('#ocr-raw-text-edit');
+    if (btnReparse && rawTextarea) {
+      btnReparse.onclick = () => {
+        const reparsed = parseFmInsideHtml(rawTextarea.value);
+        displayOcrResults(reparsed, rawTextarea.value);
+      };
+    }
 
     btnConfirm.disabled = false;
   };
